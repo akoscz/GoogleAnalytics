@@ -4,7 +4,7 @@ A quick 'limited feature' implemenetation of the Google Analytics [Measurement P
 
 Note: Only the `/collect` endpoint is supported by means of a `GET` request.
 
-This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnalytics.java) implementation relies on the [Lombok](https://projectlombok.org/index.html) code generation annotation library to generate a [Builder](https://projectlombok.org/features/Builder.html) class to allow for composing the fields of of a GoogleAnalytics request.
+This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnalytics.java) implementation relies on the [Lombok](https://projectlombok.org/index.html) code generation annotation library to generate a [Builder](https://projectlombok.org/features/Builder.html) class to allow for composing the fields of a GoogleAnalytics request.
 
 
 Usage example:
