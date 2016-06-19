@@ -7,7 +7,6 @@ import lombok.SneakyThrows;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -16,7 +15,7 @@ import java.util.regex.Pattern;
 
 @Builder(builderClassName = "Tracker", builderMethodName = "requiredParamsBuilder")
 public class GoogleAnalytics {
-    public static enum HitType {
+    public enum HitType {
         pageview,
         screenview,
         event,
@@ -41,8 +40,8 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // *****************************
     // ****** REQUIRED PARAMS ******
+    // *****************************
 
     @Getter
     private String trackingId;
@@ -71,8 +70,8 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // *****************************
     // ****** EVENT TRACKING  ******
+    // *****************************
 
     @Getter
     private String category;
@@ -116,8 +115,8 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // *****************************
     // ************ HIT ************
+    // *****************************
 
     @Getter
     private HitType type;
@@ -128,8 +127,8 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // *****************************
     // **** APPLICATION TRACKING ***
+    // *****************************
 
     @Getter
     private String applicationName;
@@ -159,8 +158,8 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // *****************************
     // **** CONTENT INFORMATION ****
+    // *****************************
 
     @Getter
     private String screenName;
@@ -187,40 +186,86 @@ public class GoogleAnalytics {
                 .applicationName(applicationName);
     }
 
+    /**
+     * Send the parameters over the network to Google Analytics.
+     * Note that this method will clear all the non-required parameters irregardless of success or failure
+     * of the network request.
+     * This method defaults to performing the network operation asynchronously.
+     */
     public void send() {
-        final String url = buildUrlString();
-
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                HttpURLConnection connection = null;
-                try
-                {
-                    connection = (HttpURLConnection) new URL(url).openConnection();
-                    connection.setRequestMethod("GET");
-                    connection.setRequestProperty("User-Agent", getUserAgent());
-
-                    final int responseCode = connection.getResponseCode();
-                    if (responseCode != HttpURLConnection.HTTP_OK) {
-                        System.err.println("Error requesting url '" + url + "', received response code " + responseCode);
-                    } else {
-                        System.out.println("Successfully hit tracker: " + url);
-                    }
-                } catch (ProtocolException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    if (connection != null) {
-                        connection.disconnect();
-                    }
-                }
-            }
-        }).start();
-
+        // default to send asynchronously
+        send(true);
     }
 
+    /**
+     * Send the parameters over the network to Google Analytics.
+     * Note that this method will clear all the non-required parameters irregardless of success or failure
+     * of the network request.
+     * @param asynchronous True to perform the network operation asynchronously, False otherwise.
+     */
+    public void send(boolean asynchronous) {
+
+        final String url = buildUrlString();
+
+        if (asynchronous) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    doNetworkOperation(url);
+                }
+            }).start();
+        } else {
+            doNetworkOperation(url);
+        }
+
+        // clear all non-required fields
+        resetTracker();
+    }
+
+    private void doNetworkOperation(String url) {
+        HttpURLConnection connection = null;
+        try
+        {
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", getUserAgent());
+
+            final int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                System.err.println("Error requesting url '" + url + "', received response code " + responseCode);
+            } else {
+                System.out.println("Successfully hit tracker: " + url);
+            }
+        } catch (ProtocolException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    /**
+     * Clear all the non-required fields
+     */
+    private void resetTracker() {
+        userId = null;
+        category = null;
+        action = null;
+        label = null;
+        value = null;
+        type = null;
+        applicationVersion = null;
+        applicationId = null;
+        screenName = null;
+    }
+
+    /**
+     * Build the URL that will be used for the network request.
+     * @return The URL string containing the query params of all available parameters.
+     */
     public String buildUrlString() {
         if (type == null) throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
 
@@ -265,21 +310,14 @@ public class GoogleAnalytics {
             }
             return this;
         }
+
         public String toString() {
             return builder.toString();
         }
 
-        public URL toUrl() throws MalformedURLException {
-            return new URL(builder.toString());
-        }
     }
 
     private String getUserAgent() {
-        String appVersion = getApplicationVersion();
-        String userAgent = getApplicationName() + "/";
-        if (appVersion == null || appVersion.isEmpty()) {
-            appVersion = "unknown";
-        }
-        return userAgent;
+        return new UserAgent(getApplicationName(), getApplicationVersion()).toString();
     }
 }
