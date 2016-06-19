@@ -7,6 +7,7 @@ This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnaly
 Notes: 
 * Only the `/collect` endpoint is supported by means of a `GET` request.
 * Each invocation to send() kicks off a new Thread for performing the network operation.
+* After invoking send(), all non-required parameters are cleared from the tracker irregardless of success or failure of the network i/o.
 * Only the following hit types are available for now:
     * pageview
     * screenview
