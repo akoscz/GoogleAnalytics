@@ -4,11 +4,15 @@ A quick and simple *limited feature* implemenetation of the Google Analytics [Me
 
 This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnalytics.java) implementation relies on the [Lombok](https://projectlombok.org/index.html) code generation annotation library to generate a [Builder](https://projectlombok.org/features/Builder.html) class to allow for composing the fields of a GoogleAnalytics request.
 
-Notes: 
-* Only the `/collect` endpoint is supported by means of a `GET` request.
-* Each invocation to send() kicks off a new Thread for performing the network operation.
-* After invoking send(), all non-required parameters are cleared from the tracker irregardless of success or failure of the network i/o.
-* Only the following hit types are available for now:
+**Notes:** 
+* Only the `/collect` and `/debug/collect` endpoints are supported by means of a `GET` request.
+* The `/batch` endpoit is NOT supported, neither are `POST` requests.
+* To point to the `/debug/collect` endpoint, use `GoogleAnalytics.setDebug(true)`. Logging level will be set to `Level.ALL` for verbose logging.
+* To control the logging level, use `GoogleAnalytics.setLogLevel(Level)`.  The default logging level is `Level.SEVERE`.
+* Invoking the `GoogleAnalytics.send()` method will perform the network I/O asynchronously by spinning up a new Thread for doing the work.
+* For sychronous operation, use `GoogleAnalytics.send(false)` which will perform the network I/O on the thread it was invoked from.
+* All non-required parameters are cleared from the Tracker irregardless of success or failure of the network I/O when `GoogleAnalytics.send()` is invoked.
+* The following hit types are currently supported:
     * pageview
     * screenview
     * event
