@@ -17,6 +17,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+/**
+ * This class implements the GoogleAnalytics Measurement Protocol.
+ * It provides support for a subset of the Measurement Protocol parameters.
+ * See: https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
+ */
 @Builder(builderClassName = "Tracker", builderMethodName = "requiredParamsBuilder")
 public class GoogleAnalytics {
     public enum HitType {
@@ -46,17 +51,20 @@ public class GoogleAnalytics {
     @Getter
     private String endpoint;
 
+    // *****************************
+    // ********** GENERAL **********
+    // *****************************
+
     @Getter
+    /** REQUIRED PARAM **/
     private int protocolVersion;
     private String v() {
         return "v=" + protocolVersion;
     }
 
-    // *****************************
-    // ****** REQUIRED PARAMS ******
-    // *****************************
 
     @Getter
+    /** REQUIRED PARAM **/
     private String trackingId;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String tid() {
@@ -66,7 +74,12 @@ public class GoogleAnalytics {
         return "&tid=" + URLEncoder.encode(trackingId, ENCODING);
     }
 
+    // *****************************
+    // *********** USER ************
+    // *****************************
+
     @Getter
+    /** REQUIRED PARAM **/
     private UUID clientId;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String cid() {
@@ -80,6 +93,67 @@ public class GoogleAnalytics {
     private String uid() {
         if (userId == null || userId.isEmpty()) return null;
         return "&uid=" + URLEncoder.encode(userId, ENCODING);
+    }
+
+    // *****************************
+    // ************ HIT ************
+    // *****************************
+
+    @Getter
+    /** REQUIRED PARAM **/
+    private HitType type;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String t() {
+        if (type == null) throw new IllegalArgumentException("'type' cannot be null!");
+        return "&t=" + URLEncoder.encode(type.name(), ENCODING);
+    }
+
+    // *****************************
+    // **** CONTENT INFORMATION ****
+    // *****************************
+
+    @Getter
+    private String screenName;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String cd() {
+        if (type == HitType.screenview && (screenName == null || screenName.isEmpty())) {
+            throw new IllegalArgumentException("'screenName' cannot be null or empty when HitType.screenview is specified!");
+        }
+        if (screenName == null || screenName.isEmpty()) return null;
+        if (screenName.getBytes().length > 2048) throw new RuntimeException("'screenName' cannot exceed 2048 bytes!");
+        return "&cd=" + URLEncoder.encode(screenName, ENCODING);
+    }
+
+    // *****************************
+    // **** APPLICATION TRACKING ***
+    // *****************************
+
+    @Getter
+    /** REQUIRED PARAM **/
+    private String applicationName;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String an() {
+        if (applicationName == null || applicationName.isEmpty()) throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
+        if (applicationName.getBytes().length > 100) throw new RuntimeException("'applicationName' cannot exceed 100 bytes!");
+        return "&an=" + URLEncoder.encode(applicationName, ENCODING);
+    }
+
+    @Getter
+    private String applicationVersion;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String av() {
+        if (applicationVersion == null || applicationVersion.isEmpty()) return null;
+        if (applicationVersion.getBytes().length > 100) throw new RuntimeException("'applicationVersion' cannot exceed 100 bytes!");
+        return "&av=" + URLEncoder.encode(applicationVersion, ENCODING);
+    }
+
+    @Getter
+    private String applicationId;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String aid() {
+        if (applicationId == null || applicationId.isEmpty()) return null;
+        if (applicationId.getBytes().length > 150) throw new RuntimeException("'applicationId' cannot exceed 150 bytes!");
+        return "&aid=" + URLEncoder.encode(applicationId, ENCODING);
     }
 
     // *****************************
@@ -128,68 +202,16 @@ public class GoogleAnalytics {
     }
 
     // *****************************
-    // ************ HIT ************
-    // *****************************
-
-    @Getter
-    private HitType type;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String t() {
-        if (type == null) throw new IllegalArgumentException("'type' cannot be null!");
-        return "&t=" + URLEncoder.encode(type.name(), ENCODING);
-    }
-
-    // *****************************
-    // **** APPLICATION TRACKING ***
-    // *****************************
-
-    @Getter
-    private String applicationName;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String an() {
-        if (applicationName == null || applicationName.isEmpty()) throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
-        if (applicationName.getBytes().length > 100) throw new RuntimeException("'applicationName' cannot exceed 100 bytes!");
-        return "&an=" + URLEncoder.encode(applicationName, ENCODING);
-    }
-
-    @Getter
-    private String applicationVersion;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String av() {
-        if (applicationVersion == null || applicationVersion.isEmpty()) return null;
-        if (applicationVersion.getBytes().length > 100) throw new RuntimeException("'applicationVersion' cannot exceed 100 bytes!");
-        return "&av=" + URLEncoder.encode(applicationVersion, ENCODING);
-    }
-
-    @Getter
-    private String applicationId;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String aid() {
-        if (applicationId == null || applicationId.isEmpty()) return null;
-        if (applicationId.getBytes().length > 150) throw new RuntimeException("'applicationId' cannot exceed 150 bytes!");
-        return "&aid=" + URLEncoder.encode(applicationId, ENCODING);
-    }
-
-    // *****************************
-    // **** CONTENT INFORMATION ****
-    // *****************************
-
-    @Getter
-    private String screenName;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String cd() {
-        if (type == HitType.screenview && (screenName == null || screenName.isEmpty())) {
-            throw new IllegalArgumentException("'screenName' cannot be null or empty when HitType.screenview is specified!");
-        }
-        if (screenName == null || screenName.isEmpty()) return null;
-        if (screenName.getBytes().length > 2048) throw new RuntimeException("'screenName' cannot exceed 2048 bytes!");
-        return "&cd=" + URLEncoder.encode(screenName, ENCODING);
-    }
-
-    // *****************************
     // *****************************
     // *****************************
 
+    /**
+     * Build a Tracker instance by which you can compose your GoogleAnalytics tracking request.
+     * @param trackingId Required Valid Google Analytics Tracking Id.
+     * @param clientId Required Valid Client Id UUID.
+     * @param applicationName Required non-null non-empty Application Name.
+     * @return A Google Analytics Tracker instance.
+     */
     public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName) {
         return requiredParamsBuilder()
                 .endpoint(DEBUG ? GA_DEBUG_ENDPOINT: GA_ENDPOINT)
