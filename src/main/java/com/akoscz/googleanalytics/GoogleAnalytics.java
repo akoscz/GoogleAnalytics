@@ -4,13 +4,17 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 @Builder(builderClassName = "Tracker", builderMethodName = "requiredParamsBuilder")
@@ -26,9 +30,18 @@ public class GoogleAnalytics {
 //    timing;
     }
 
+    private final static Logger LOGGER = Logger.getLogger(GoogleAnalytics.class.getName());
     private static final String GA_ENDPOINT = "https://www.google-analytics.com/collect";
+    private static final String GA_DEBUG_ENDPOINT = "https://www.google-analytics.com/debug/collect";
     private static final int PROTOCOL_VERSION = 1;
     private static final String ENCODING = "UTF-8";
+    private static final Level DEFAULT_LOG_LEVEL = Level.SEVERE;
+    private static boolean DEBUG = false;
+
+    static {
+        // set the default log level to SEVERE.
+        LOGGER.setLevel(DEFAULT_LOG_LEVEL);
+    }
 
     @Getter
     private String endpoint;
@@ -179,11 +192,35 @@ public class GoogleAnalytics {
 
     public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName) {
         return requiredParamsBuilder()
-                .endpoint(GA_ENDPOINT)
+                .endpoint(DEBUG ? GA_DEBUG_ENDPOINT: GA_ENDPOINT)
                 .protocolVersion(PROTOCOL_VERSION)
                 .trackingId(trackingId)
                 .clientId(clientId)
                 .applicationName(applicationName);
+    }
+
+    /**
+     * Enable debug mode.
+     * By enabling debug mode, all network traffic will go to the debug endpoint.
+     * Logging level will automatically be set to Level.ALL
+     * @param enableDebug True to enable debug mode, False otherwise.
+     */
+    public static void setDebug(boolean enableDebug) {
+        DEBUG = enableDebug;
+        LOGGER.setLevel(Level.ALL);
+    }
+
+    /**
+     * Set the Log Level for logging
+     * @param logLevel A java.util.logging.LogLevel value.
+     *                 Passing in null will reset the log level to the default, Level.SEVERE
+     */
+    public static void setLogLevel(Level logLevel) {
+        if (logLevel == null) {
+            // reset to default
+            logLevel = DEFAULT_LOG_LEVEL;
+        }
+        LOGGER.setLevel(logLevel);
     }
 
     /**
@@ -205,6 +242,9 @@ public class GoogleAnalytics {
      */
     public void send(boolean asynchronous) {
 
+        // ensure that we have the right endpoint configured
+        endpoint = DEBUG ? GA_DEBUG_ENDPOINT : GA_ENDPOINT;
+
         final String url = buildUrlString();
 
         if (asynchronous) {
@@ -224,18 +264,32 @@ public class GoogleAnalytics {
 
     private void doNetworkOperation(String url) {
         HttpURLConnection connection = null;
-        try
-        {
+        try {
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent", getUserAgent());
 
             final int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                System.err.println("Error requesting url '" + url + "', received response code " + responseCode);
+                LOGGER.warning("Error requesting url: '" + url + "'. Response code: " + responseCode);
             } else {
-                System.out.println("Successfully hit tracker: " + url);
+                LOGGER.info("Successfully hit tracker: '" + url + "'");
             }
+
+            if (DEBUG) {
+                StringBuilder content = new StringBuilder();
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+                String line;
+                // read from the urlconnection via the bufferedreader
+                while ((line = bufferedReader.readLine()) != null) {
+                    content.append(line + "\n");
+                }
+                bufferedReader.close();
+
+                LOGGER.info(content.toString());
+            }
+
         } catch (ProtocolException e) {
             e.printStackTrace();
         } catch (IOException e) {
