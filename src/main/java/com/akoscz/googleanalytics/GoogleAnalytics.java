@@ -55,16 +55,26 @@ public class GoogleAnalytics {
     // ********** GENERAL **********
     // *****************************
 
+    /**
+     * Required for all hit types.
+     *
+     * The Protocol version. The current value is '1'.
+     * This will only change when there are changes made that are not backwards compatible.
+     */
     @Getter
-    /** REQUIRED PARAM **/
     private int protocolVersion;
     private String v() {
         return "v=" + protocolVersion;
     }
 
 
+    /**
+     * Required for all hit types.
+     *
+     * The tracking ID / web property ID. The format is UA-XXXX-Y.
+     * All collected data is associated by this ID.
+     */
     @Getter
-    /** REQUIRED PARAM **/
     private String trackingId;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String tid() {
@@ -78,8 +88,15 @@ public class GoogleAnalytics {
     // *********** USER ************
     // *****************************
 
+    /**
+     * Required for all hit types.
+     *
+     * This anonymously identifies a particular user, device, or browser instance.
+     * For the web, this is generally stored as a first-party cookie with a two-year expiration.
+     * For mobile apps, this is randomly generated for each particular instance of an application install.
+     * The value of this field should be a random UUID (version 4) as described in http://www.ietf.org/rfc/rfc4122.txt
+     */
     @Getter
-    /** REQUIRED PARAM **/
     private UUID clientId;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String cid() {
@@ -87,6 +104,13 @@ public class GoogleAnalytics {
         return "&cid=" + URLEncoder.encode(clientId.toString(), ENCODING);
     }
 
+    /**
+     * Optional.
+     *
+     * This is intended to be a known identifier for a user provided by the site owner/tracking library user.
+     * It must not itself be PII (personally identifiable information).
+     * The value should never be persisted in GA cookies or other Analytics provided storage.
+     */
     @Getter
     private String userId;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -99,8 +123,13 @@ public class GoogleAnalytics {
     // ************ HIT ************
     // *****************************
 
+    /**
+     * Required for all hit types.
+     *
+     * The type of hit. Must be one of 'pageview', 'screenview', 'event'.
+     * The following 'transaction', 'item', 'social', 'exception', 'timing' are not yet supported.
+     */
     @Getter
-    /** REQUIRED PARAM **/
     private HitType type;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String t() {
@@ -112,6 +141,14 @@ public class GoogleAnalytics {
     // **** CONTENT INFORMATION ****
     // *****************************
 
+    /**
+     * Required for 'screenview' hit type.
+     *
+     * This parameter is optional on web properties, and required on mobile properties for screenview hits,
+     * where it is used for the 'Screen Name' of the screenview hit.
+     * On web properties this will default to the unique URL of the page by either using the &dl parameter as-is
+     * or assembling it from &dh and &dp.
+     */
     @Getter
     private String screenName;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -128,8 +165,12 @@ public class GoogleAnalytics {
     // **** APPLICATION TRACKING ***
     // *****************************
 
+    /**
+     * Required for all hit types.
+     *
+     * Specifies the application name.
+     */
     @Getter
-    /** REQUIRED PARAM **/
     private String applicationName;
     @SneakyThrows(UnsupportedEncodingException.class)
     private String an() {
@@ -138,6 +179,11 @@ public class GoogleAnalytics {
         return "&an=" + URLEncoder.encode(applicationName, ENCODING);
     }
 
+    /**
+     * Optional.
+     *
+     * Specifies the application version.
+     */
     @Getter
     private String applicationVersion;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -147,6 +193,11 @@ public class GoogleAnalytics {
         return "&av=" + URLEncoder.encode(applicationVersion, ENCODING);
     }
 
+    /**
+     * Optional.
+     *
+     * Application identifier.
+     */
     @Getter
     private String applicationId;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -160,6 +211,11 @@ public class GoogleAnalytics {
     // ****** EVENT TRACKING  ******
     // *****************************
 
+    /**
+     * Required for 'event' hit type.
+     *
+     * Specifies the event category. Must not be empty.
+     */
     @Getter
     private String category;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -172,6 +228,11 @@ public class GoogleAnalytics {
         return "&ec=" + URLEncoder.encode(category, ENCODING);
     }
 
+    /**
+     * Required for event hit type.
+     *
+     * Specifies the event action. Must not be empty.
+     */
     @Getter
     private String action;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -184,6 +245,11 @@ public class GoogleAnalytics {
         return "&ea=" + URLEncoder.encode(action, ENCODING);
     }
 
+    /**
+     * Optional.
+     *
+     * Specifies the event label.
+     */
     @Getter
     private String label;
     @SneakyThrows(UnsupportedEncodingException.class)
@@ -193,6 +259,11 @@ public class GoogleAnalytics {
         return "&el=" + URLEncoder.encode(label, ENCODING);
     }
 
+    /**
+     * Optional.
+     *
+     * Specifies the event value. Values must be non-negative.
+     */
     @Getter
     private Integer value;
     private String ev() {
@@ -223,6 +294,7 @@ public class GoogleAnalytics {
 
     /**
      * Enable debug mode.
+     *
      * By enabling debug mode, all network traffic will go to the debug endpoint.
      * Logging level will automatically be set to Level.ALL
      * @param enableDebug True to enable debug mode, False otherwise.
