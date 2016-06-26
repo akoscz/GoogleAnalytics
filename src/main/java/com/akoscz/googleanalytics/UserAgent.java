@@ -1,16 +1,34 @@
 package com.akoscz.googleanalytics;
 
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Utility class to build the UserAgent string.
+ *
+ * By default the following are included in the user agent string:
+ *      System.getProperty("os.arch")
+ *      System.getProperty("os.name")
+ *      System.getProperty("os.version")
+ *      System.getProperty("java.version")
+ *      System.getProperty("java.vendor")
+ *      System.getProperty("java.vm.name")
+ *      System.getProperty("java.runtime.name")
+ *
+ * The format of the user agent string this class generates looks like this:
+ *
+ *      ProductName/ProductVersion (os.arch; os.name, os.version, options...)
+ *      Java/java.version (java.vendor; java.vm.name; java.runtime.name)
+ *
+ * where ProductName, ProductVersion and options... are parameters specified in the constructor.
+ *
  */
 public class UserAgent {
-
     private final List<UserAgent.Field> fields = new ArrayList<UserAgent.Field>();
 
     public UserAgent(String productName, String productVersion, String... options) {
@@ -19,82 +37,29 @@ public class UserAgent {
         }
 
         try {
-            addField(
-                    new UserAgent.Field(
-                            productName,
-                            productVersion,
-                            concatAll(
-                                    new String[]{
-                                            System.getProperty("os.arch"),
-                                            System.getProperty("os.name"),
-                                            System.getProperty("os.version")
-                                    },
-                                    options
-                            )
-                    ));
-
-            addField(
-                    new UserAgent.Field(
-                            "Java",
-                            System.getProperty("java.version"),
+            addField(new UserAgent.Field(
+                    productName,
+                    productVersion,
+                    ArrayUtils.addAll(
                             new String[]{
-                                    System.getProperty("java.vendor"),
-                                    System.getProperty("java.vm.name"),
-                                    System.getProperty("java.runtime.name")
-                            }
-                    ));
+                                    System.getProperty("os.arch"),
+                                    System.getProperty("os.name"),
+                                    System.getProperty("os.version")
+                            },
+                            options
+                    )
+            ));
+
+            addField(new UserAgent.Field(
+                    "Java",
+                    System.getProperty("java.version"),
+                    System.getProperty("java.vendor"),
+                    System.getProperty("java.vm.name"),
+                    System.getProperty("java.runtime.name")));
         } catch (RuntimeException ex) {
             Logger.getLogger(
                     UserAgent.class.getName()).log(Level.SEVERE, null, ex);
         }
-    }
-
-    /**
-     * Concactinate two string arrays.
-     *
-     * @param first The first string array
-     * @param rest  The rest of the string arrays
-     * @param <T>
-     * @return
-     */
-    private static <T> T[] concatAll(T[] first, T[]... rest) {
-        if (first == null && rest != null) {
-            first = (T[]) new Object[0];
-        } else if (rest == null || rest.length == 0) {
-            return first;
-        }
-
-        int totalLength = first.length;
-        for (T[] array : rest) {
-            totalLength += array.length;
-        }
-        T[] result = Arrays.copyOf(first, totalLength);
-        int offset = first.length;
-        for (T[] array : rest) {
-            System.arraycopy(array, 0, result, offset, array.length);
-            offset += array.length;
-        }
-        return result;
-    }
-
-    /**
-     * Combine the elements of a string array into a single string where each element
-     * is separated by the specified separator string.
-     *
-     * @param elements  The strings to combine.
-     * @param separator The separator string.
-     * @return String The combined string.
-     */
-    private static <T> String combine(final T[] elements, final String separator) {
-        final StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(elements[0]);
-
-        for (int i = 1; i < elements.length; i++) {
-            stringBuilder.append(separator);
-            stringBuilder.append(elements[i]);
-        }
-
-        return stringBuilder.toString();
     }
 
     /**
@@ -103,10 +68,10 @@ public class UserAgent {
      * @param field The UserAgentField to add.
      * @throws RuntimeException If the field already exists.
      */
-    public final void addField(final UserAgent.Field field) {
+    public void addField(final UserAgent.Field field) {
         for (UserAgent.Field object : fields) {
             if (object.name.compareTo(field.name) == 0) {
-                throw new RuntimeException("field has already been set: " + field.name);
+                throw new RuntimeException("field with name '" + field.name + "' has already been set");
             }
         }
         fields.add(field);
@@ -120,47 +85,77 @@ public class UserAgent {
     @Override
     public final String toString() {
         Field[] elements = fields.toArray(new Field[0]);
-        return UserAgent.combine(elements, " ");
+        return StringUtils.join(elements, " ");
     }
 
     /**
      * UserAgent Field
      */
-    private static class Field {
+    public static class Field {
 
         private final String name;
         private final String version;
         private final String[] options;
 
         /**
-         * Constructor with optional values.
+         * Constructs a field object with the given parameters.
          *
          * @param fieldName    Name of the field.
+         *                     Cannot be null or empty value
          * @param fieldVersion Version of the field.
+         *                     Cannot be null or empty value
          * @param fieldOptions 0 or more options for the field.
+         *                     Cannot be null. Empty string values will be ignored.
          */
-        public Field(
-                final String fieldName,
-                final String fieldVersion,
-                final String... fieldOptions) {
+        Field(final String fieldName,
+              final String fieldVersion,
+              final String... fieldOptions) {
             name = fieldName;
             version = fieldVersion;
             options = fieldOptions;
         }
 
+        private static boolean containsNullOrEmptyStrings(String[] stringArray) {
+            for(String str: stringArray) {
+                if (str == null || str.isEmpty()) return true;
+            }
+
+            return false;
+        }
+
+        private static String[] filterNullAndEmptyStrings(String[] stringArray) {
+            // if there are no nulls or empties return the original array
+            if (!containsNullOrEmptyStrings(stringArray)) {
+                return stringArray;
+            }
+
+            ArrayList<String> filteredList = new ArrayList<String>();
+            for(String str: stringArray) {
+                // remove empty string
+                if (str != null && !str.isEmpty()) filteredList.add(str);
+            }
+            return filteredList.toArray(new String[filteredList.size()]);
+        }
+
         @Override
         public final String toString() {
-            String result = name;
+            String fieldString = name;
             if (version != null && !version.isEmpty()) {
-                result += "/" + version;
+                fieldString += "/" + version;
             }
 
-            if (options.length > 0) {
-                String part = String.format("(%s)", UserAgent.combine(options, "; "));
+            if (options != null && options.length > 0) {
+                String[] filteredOptions = filterNullAndEmptyStrings(options);
 
-                result = result.concat(" ").concat(part);
+                String part = null;
+                if(filteredOptions != null && filteredOptions.length > 0) {
+                    part = String.format("(%s)", StringUtils.join(filteredOptions, "; "));
+                }
+
+                if (part != null) fieldString = fieldString.concat(" ").concat(part);
+
             }
-            return result;
+            return fieldString;
         }
     }
 }
