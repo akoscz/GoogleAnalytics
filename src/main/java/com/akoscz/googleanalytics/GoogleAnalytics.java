@@ -12,6 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -82,6 +83,50 @@ public class GoogleAnalytics {
         if (!Pattern.matches("[U][A]-[0-9]+-[0-9]+", trackingId)) throw new IllegalArgumentException("Malformed trackingId: '" + trackingId + "'.  Expected: 'UA-[0-9]+-[0-9]+'");
 
         return "&tid=" + URLEncoder.encode(trackingId, ENCODING);
+    }
+
+    /**
+     * Optional.
+     *
+     * When present, the IP address of the sender will be anonymized.
+     * For example, the IP will be anonymized if any of the following parameters are present in the payload: &aip=, &aip=0, or &aip=1
+     */
+    @Getter
+    private Boolean anonymizeIP;
+    private String aip() {
+        if (anonymizeIP == null) return null;
+        return "&aip=" + (anonymizeIP ? "1" : "0");
+    }
+
+    /**
+     * Optional.
+     *
+     * Indicates the data source of the hit.
+     * For example:
+     * hits sent from analytics.js will have data source set to 'web';
+     * hits sent from one of the mobile SDKs will have data source set to 'app'.
+     */
+    @Getter
+    private String dataSource;
+    @SneakyThrows(UnsupportedEncodingException.class)
+    private String ds() {
+        if (dataSource == null || dataSource.isEmpty()) return null;
+        return "&ds=" + URLEncoder.encode(dataSource, ENCODING);
+    }
+
+    /**
+     * Optional.
+     *
+     * Used to send a random number in GET requests to ensure browsers and proxies don't cache hits.
+     * It should be sent as the final parameter of the request since we've seen some 3rd party internet filtering software
+     * add additional parameters to HTTP requests incorrectly.
+     * This value is not used in reporting.
+     */
+    @Getter
+    private Boolean cacheBuster;
+    private String z() {
+        if (cacheBuster == null || !cacheBuster) return null;
+        return "&z=" + new Random().nextLong();
     }
 
     // *****************************
@@ -356,7 +401,7 @@ public class GoogleAnalytics {
         resetTracker();
     }
 
-    private void doNetworkOperation(String url) {
+    protected void doNetworkOperation(String url) {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
@@ -396,7 +441,7 @@ public class GoogleAnalytics {
     }
 
     /**
-     * Clear all the non-required fields
+     * Clear all non-required fields
      */
     private void resetTracker() {
         userId = null;
@@ -408,6 +453,9 @@ public class GoogleAnalytics {
         applicationVersion = null;
         applicationId = null;
         screenName = null;
+        dataSource = null;
+        anonymizeIP = null;
+        cacheBuster = null;
     }
 
     /**
@@ -417,22 +465,26 @@ public class GoogleAnalytics {
     public String buildUrlString() {
         if (type == null) throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
 
-        String urlString = new CustomStringBuilder().append(endpoint)
-                    .append("?")
-                    .append(v())
-                    .append(tid())
-                    .append(cid())
-                    .append(uid())
-                    .append(ec())
-                    .append(ea())
-                    .append(el())
-                    .append(ev())
-                    .append(t())
-                    .append(an())
-                    .append(av())
-                    .append(aid())
-                    .append(cd())
-                    .toString();
+        String urlString = new CustomStringBuilder()
+                .append(endpoint)
+                .append("?")
+                .append(v())    // protocol version
+                .append(aip())  // anonymize IP
+                .append(ds())   // data source
+                .append(tid())  // tracking id
+                .append(cid())  // client id
+                .append(uid())  // user id
+                .append(ec())   // event category
+                .append(ea())   // event action
+                .append(el())   // event label
+                .append(ev())   // event value
+                .append(t())    // event type
+                .append(an())   // application name
+                .append(av())   // application version
+                .append(aid())  // application id
+                .append(cd())   // screen name
+                .append(z())    // cache buster
+                .toString();
 
         if (urlString.getBytes().length > 8000) {
             throw new RuntimeException("URL string length must not exceed 8000 bytes!");
