@@ -1,4 +1,6 @@
-# GoogleAnalytics
+# GoogleAnalytics 
+[![Build Status](https://travis-ci.org/akoscz/GoogleAnalytics.svg?branch=master)](https://travis-ci.org/akoscz/GoogleAnalytics) [![Code Coverage](https://img.shields.io/codecov/c/github/akoscz/GoogleAnalytics/master.svg)](https://codecov.io/github/akoscz/GoogleAnalytics?branch=master)
+
 
 A quick and simple *limited feature* implemenetation of the Google Analytics [Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/v1/devguide) API in Java.
 
