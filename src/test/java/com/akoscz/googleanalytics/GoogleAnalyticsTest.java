@@ -1,5 +1,6 @@
 package com.akoscz.googleanalytics;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -12,6 +13,8 @@ import java.net.URLDecoder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyString;
@@ -42,7 +45,7 @@ public class GoogleAnalyticsTest {
         assertEquals(clientId, googleAnalytics.getClientId());
         assertEquals(applicationName, googleAnalytics.getApplicationName());
         assertEquals(1, googleAnalytics.getProtocolVersion());
-        assertEquals("https://www.google-analytics.com/collect", googleAnalytics.getEndpoint());
+        assertEquals("https://www.google-analytics.com/collect", googleAnalytics.getConfig().getEndpoint());
 
         // ensure url is built with proper query params and values
         String url = tracker.build().buildUrlString();
@@ -72,12 +75,17 @@ public class GoogleAnalyticsTest {
     }
 
     @Test
-    public void testTrackingId_NullOrEmpty() throws Exception {
+    public void testTrackingId_Null() throws Exception {
+        thrown.expectMessage("'trackingId' cannot be null or empty!");
+        // ensure that null is not allowed
+        tracker.trackingId(null).build().buildUrlString();
+    }
+
+    @Test
+    public void testTrackingId_Empty() throws Exception {
         thrown.expectMessage("'trackingId' cannot be null or empty!");
         // ensure that empty string is not allowed
         tracker.trackingId("").build().buildUrlString();
-        // ensure that null is not allowed
-        tracker.trackingId(null).build().buildUrlString();
     }
 
     @Test
@@ -93,12 +101,52 @@ public class GoogleAnalyticsTest {
     }
 
     @Test
-    public void testClientId_NullOrEmpty() throws Exception {
+    public void testClientId_Null() throws Exception {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("'clientId' cannot be null!");
         // ensure that null is not allowed
         tracker.clientId(null).build().buildUrlString();
     }
+
+    @Test
+    public void testUserId() throws Exception {
+        String testUserId = "testUserId";
+        GoogleAnalytics googleAnalytics = tracker.userId(testUserId).build();
+        // ensure setter works
+        assertEquals(testUserId, googleAnalytics.getUserId());
+
+        // ensure url is built with proper query param and value
+        String url = tracker.build().buildUrlString();
+        assertQueryParam(url, "uid", String.valueOf(testUserId));
+    }
+
+    @Test
+    public void testUserId_NullAndEmpty() throws Exception {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getUserId());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "uid");
+
+        // set a value and verify it
+        googleAnalytics = tracker.userId("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "uid", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.userId("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "uid");
+
+        // set a value and verify it
+        googleAnalytics = tracker.userId("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "uid", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.userId(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "uid");
+    }
+
 
     @Test
     public void testApplicationName() throws Exception {
@@ -112,13 +160,30 @@ public class GoogleAnalyticsTest {
     }
 
     @Test
-    public void testApplicationName_NullOrEmpty() throws Exception {
+    public void testApplicationName_Null() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("'applicationName' cannot be null or empty!");
+        // ensure null is not allowed
+        tracker.applicationName(null).build().buildUrlString();
+    }
+
+    @Test
+    public void testApplicationName_Empty() throws Exception {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage("'applicationName' cannot be null or empty!");
         // ensure empty string is not allowed
         tracker.applicationName("").build().buildUrlString();
-        // ensure null is not allowed
-        tracker.applicationName(null).build().buildUrlString();
+    }
+
+    @Test
+    public void testApplicationName_MaxLength() throws Exception {
+        int maxLength = 100;
+        String testAppName = StringUtils.repeat("a", maxLength + 1);
+        GoogleAnalytics googleAnalytics = tracker.applicationName(testAppName).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'applicationName' cannot exceed 100 bytes!");
+        googleAnalytics.buildUrlString();
     }
 
     @Test
@@ -147,7 +212,6 @@ public class GoogleAnalyticsTest {
         thrown.expect(RuntimeException.class);
         thrown.expectMessage("URL string length must not exceed 8000 bytes!");
         tracker.userId(longString).build().buildUrlString();
-
     }
 
     @Test
@@ -197,11 +261,31 @@ public class GoogleAnalyticsTest {
     }
 
     @Test
-    public void testDataSource_NullOrEmpty() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("'clientId' cannot be null!");
-        // ensure that null is not allowed
-        tracker.clientId(null).build().buildUrlString();
+    public void testDataSource_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getDataSource());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ds");
+
+        // set a value and verify it
+        googleAnalytics = tracker.dataSource("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ds", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.dataSource("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ds");
+
+
+        // set a value and verify it
+        googleAnalytics = tracker.dataSource("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ds", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.dataSource(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ds");
     }
 
     @Test
@@ -236,6 +320,363 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = googleAnalytics.buildUrlString();
         assertTrue("url should not contain 'z' query parameter", !url.contains("&z"));
+    }
+
+    @Test
+    public void testScreeName() throws UnsupportedEncodingException, MalformedURLException {
+        String testScreenName = "testScreenName";
+        GoogleAnalytics googleAnalytics = tracker.screenName(testScreenName).build();
+
+        assertEquals(testScreenName, googleAnalytics.getScreenName());
+        assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "cd");
+        assertQueryParam(googleAnalytics.buildUrlString(), "cd", testScreenName);
+    }
+
+    @Test
+    public void testScreeName_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getScreenName());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "cd");
+
+        // set a value and verify it
+        googleAnalytics = tracker.screenName("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "cd", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.screenName("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "cd");
+
+        // set a value and verify it
+        googleAnalytics = tracker.screenName("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "cd", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.screenName(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "cd");
+    }
+
+    @Test
+    public void testScreeName_Null() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("'screenName' cannot be null or empty when HitType.screenview is specified!");
+        tracker.screenName(null)
+                .type(GoogleAnalytics.HitType.screenview)
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testScreeName_Empty() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("'screenName' cannot be null or empty when HitType.screenview is specified!");
+        tracker.screenName("")
+                .type(GoogleAnalytics.HitType.screenview)
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testScreeName_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxScreenNameLength = 2048;
+        String testScreenName = StringUtils.repeat("a", maxScreenNameLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.screenName(testScreenName).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'screenName' cannot exceed 2048 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testCategory() throws UnsupportedEncodingException, MalformedURLException {
+        String testCategory= "testCategory";
+        GoogleAnalytics googleAnalytics = tracker.category(testCategory).build();
+
+        assertEquals(testCategory, googleAnalytics.getCategory());
+        assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ec");
+        assertQueryParam(googleAnalytics.buildUrlString(), "ec", testCategory);
+    }
+
+    @Test
+    public void testCategory_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getCategory());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ec");
+
+        // set a value and verify it
+        googleAnalytics = tracker.category("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ec", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.category("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ec");
+
+        // set a value and verify it
+        googleAnalytics = tracker.category("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ec", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.category(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ec");
+    }
+
+    @Test
+    public void testCategory_Null() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("event 'category' cannot be null or empty when HitType.event is specified!");
+        tracker.category(null)
+                .type(GoogleAnalytics.HitType.event)
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testCategory_Empty() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("event 'category' cannot be null or empty when HitType.event is specified!");
+        tracker.category("")
+                .type(GoogleAnalytics.HitType.event)
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testCategory_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxCategoryLength = 150;
+        String testCategory = StringUtils.repeat("a", maxCategoryLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.category(testCategory).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'category' cannot exceed 150 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testAction() throws UnsupportedEncodingException, MalformedURLException {
+        String testAction = "testAction";
+        GoogleAnalytics googleAnalytics = tracker.action(testAction).build();
+
+        assertEquals(testAction, googleAnalytics.getAction());
+        assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ea");
+        assertQueryParam(googleAnalytics.buildUrlString(), "ea", testAction);
+    }
+
+    @Test
+    public void testAction_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getAction());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "el");
+
+        // set a value and verify it
+        googleAnalytics = tracker.action("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ea", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.action("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ea");
+
+        // set a value and verify it
+        googleAnalytics = tracker.action("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "ea", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.action(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "ea");
+    }
+
+    @Test
+    public void testAction_Null() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("event 'action' cannot be null or empty when HitType.event is specified!");
+        tracker.action(null)
+                .type(GoogleAnalytics.HitType.event)
+                .category("blah")
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testAction_Empty() throws UnsupportedEncodingException, MalformedURLException {
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("event 'action' cannot be null or empty when HitType.event is specified!");
+        tracker.action("")
+                .type(GoogleAnalytics.HitType.event)
+                .category("blah")
+                .build()
+                .buildUrlString();
+    }
+
+    @Test
+    public void testAction_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxActionLength = 500;
+        String testAction = StringUtils.repeat("a", maxActionLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.action(testAction).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("event 'action' cannot exceed 500 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testLabel() throws UnsupportedEncodingException, MalformedURLException {
+        String testLabel = "testLabel";
+        GoogleAnalytics googleAnalytics = tracker.label(testLabel).build();
+
+        assertEquals(testLabel, googleAnalytics.getLabel());
+        assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "el");
+        assertQueryParam(googleAnalytics.buildUrlString(), "el", testLabel);
+    }
+
+    @Test
+    public void testLabel_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getLabel());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "el");
+
+        // set a value and verify it
+        googleAnalytics = tracker.label("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "el", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.label("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "el");
+
+        // set a value and verify it
+        googleAnalytics = tracker.label("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "el", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.label(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "el");
+    }
+
+    @Test
+    public void testLabel_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxLabelLength = 500;
+        String testLabel = StringUtils.repeat("a", maxLabelLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.label(testLabel).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("event 'label' cannot exceed 500 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testValue() throws UnsupportedEncodingException, MalformedURLException {
+        int expectedValue = 10;
+        GoogleAnalytics googleAnalytics = tracker.value(expectedValue).build();
+
+        assertEquals(expectedValue, googleAnalytics.getValue().intValue());
+        assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ev");
+        assertQueryParam(googleAnalytics.buildUrlString(), "ev", String.valueOf(expectedValue));
+    }
+
+    @Test
+    public void testValue_Negative() throws UnsupportedEncodingException, MalformedURLException {
+        int expectedNegativeValue = -10;
+        GoogleAnalytics googleAnalytics = tracker.value(expectedNegativeValue).build();
+        assertEquals(expectedNegativeValue, googleAnalytics.getValue().intValue());
+        // it's a bummer that we do not have value validators in lombock's builder.
+        // the negative illegal value exception is only caught when we build the url
+        thrown.expectMessage("event 'value' cannot be negative!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testApplicationVersion_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getApplicationVersion());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "av");
+
+        // set a value and verify it
+        googleAnalytics = tracker.applicationVersion("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "av", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.applicationVersion("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "av");
+
+        // set a value and verify it
+        googleAnalytics = tracker.applicationVersion("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "av", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.applicationVersion(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "av");
+    }
+
+    @Test
+    public void testApplicationVersion_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxLength = 100;
+        String testAppversion = StringUtils.repeat("a", maxLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.applicationVersion(testAppversion).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'applicationVersion' cannot exceed 100 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testApplicationId_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getApplicationId());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "aid");
+
+        // set a value and verify it
+        googleAnalytics = tracker.applicationId("blah").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "aid", "blah");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.applicationId("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "aid");
+
+        // set a value and verify it
+        googleAnalytics = tracker.applicationId("blah2").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "aid", "blah2");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.applicationId(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "aid");
+    }
+
+    @Test
+    public void testApplicationId_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxLength = 150;
+        String testAppversionId = StringUtils.repeat("a", maxLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.applicationId(testAppversionId).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'applicationId' cannot exceed 150 bytes!");
+        googleAnalytics.buildUrlString();
     }
 
     @Test
@@ -281,7 +722,79 @@ public class GoogleAnalyticsTest {
         assertEquals(clientId, spyGoogleAnalytics.getClientId());
         assertEquals(applicationName, spyGoogleAnalytics.getApplicationName());
         assertEquals(1, spyGoogleAnalytics.getProtocolVersion());
-        assertEquals("https://www.google-analytics.com/collect", googleAnalytics.getEndpoint());
+        assertEquals("https://www.google-analytics.com/collect", googleAnalytics.getConfig().getEndpoint());
+    }
+
+    @Test
+    public void testBuildUrl() {
+        GoogleAnalytics googleAnalytics = tracker
+                .userId("testUserId")
+                .category("testCategory")
+                .action("testAction")
+                .label("testLabel")
+                .value(1000)
+                .type(GoogleAnalytics.HitType.event)
+                .applicationVersion("testVersion")
+                .applicationId("testId")
+                .screenName("testScreen")
+                .dataSource("testDataSource")
+                .anonymizeIP(true)
+                .build();
+
+        StringBuilder expectedUrlStringBuilder = new StringBuilder()
+                .append("https://www.google-analytics.com/collect")
+                .append("?v=1") // protocol version
+                .append("&aip=1") // anonymize IP
+                .append("&ds=testDataSource") // data source
+                .append("&tid=UA-12345-123") // tracking id
+                .append("&cid=" + clientId) // client id
+                .append("&uid=testUserId") // user id
+                .append("&ec=testCategory") // event category
+                .append("&ea=testAction") // event action
+                .append("&el=testLabel") // event label
+                .append("&ev=1000") // event value
+                .append("&t=event") // event type
+                .append("&an=Test+Application") // application name
+                .append("&av=testVersion") // application version
+                .append("&aid=testId") // application id
+                .append("&cd=testScreen"); // screen name
+
+        String actualUrlString = googleAnalytics.buildUrlString();
+        assertEquals(actualUrlString, expectedUrlStringBuilder.toString());
+    }
+
+    @Test
+    public void testSetDebug() {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        googleAnalytics.setDebug(true);
+
+        assertTrue(googleAnalytics.getConfig().isDebug());
+        assertEquals("https://www.google-analytics.com/debug/collect", googleAnalytics.getConfig().getEndpoint());
+    }
+
+    @Test
+    public void testSetLogger() {
+        GoogleAnalytics googleAnalytics = tracker.build();
+        Level expectedLevel = Level.FINE;
+        googleAnalytics.setLogLevel(expectedLevel);
+
+        // ensure that the log level is what we expect
+        assertEquals(expectedLevel, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+
+        googleAnalytics.setDebug(true);
+        // ensure the enabling debug changes the log level to ALL
+        assertEquals(Level.ALL, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+
+        googleAnalytics.setLogLevel(null);
+        assertEquals(Level.SEVERE, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+    }
+
+    @Test
+    public void testGetUserAgent() {
+        GoogleAnalytics googleAnalytics = tracker.applicationVersion("testVersion1").build();
+        UserAgent expectedUserAgent = new UserAgent(applicationName, "testVersion1");
+
+        assertEquals(expectedUserAgent.toString(), googleAnalytics.getUserAgent().toString());
     }
 
     /***********************/
@@ -302,6 +815,11 @@ public class GoogleAnalyticsTest {
         assertNotNull("'" + key + "' query param cannot be null. url=" + url, actualValue);
 
         assertTrue("'" + key + "' query param cannot be empty. url=" + url, !actualValue.isEmpty());
+    }
+
+    private void assertQueryParamAbsent(String url, String key) throws UnsupportedEncodingException, MalformedURLException {
+        Map<String, String> params = splitQuery(url);
+        assertFalse("expected '" + key + "' query param to be absent from url=" + url, params.containsKey(key));
     }
 
     public static Map<String, String> splitQuery(String urlString) throws UnsupportedEncodingException, MalformedURLException {

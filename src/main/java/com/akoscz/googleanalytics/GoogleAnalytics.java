@@ -3,6 +3,7 @@ package com.akoscz.googleanalytics;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,8 +15,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -23,6 +24,7 @@ import java.util.regex.Pattern;
  * It provides support for a subset of the Measurement Protocol parameters.
  * See: https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
  */
+@Log
 @Builder(builderClassName = "Tracker", builderMethodName = "requiredParamsBuilder")
 public class GoogleAnalytics {
     public enum HitType {
@@ -36,21 +38,14 @@ public class GoogleAnalytics {
 //    timing;
     }
 
-    private final static Logger LOGGER = Logger.getLogger(GoogleAnalytics.class.getName());
-    private static final String GA_ENDPOINT = "https://www.google-analytics.com/collect";
-    private static final String GA_DEBUG_ENDPOINT = "https://www.google-analytics.com/debug/collect";
     private static final int PROTOCOL_VERSION = 1;
     private static final String ENCODING = "UTF-8";
     private static final Level DEFAULT_LOG_LEVEL = Level.SEVERE;
-    private static boolean DEBUG = false;
 
-    static {
-        // set the default log level to SEVERE.
-        LOGGER.setLevel(DEFAULT_LOG_LEVEL);
-    }
+    private final ThreadPoolExecutor executor;
 
     @Getter
-    private String endpoint;
+    private final GoogleAnalyticsConfig config;
 
     // *****************************
     // ********** GENERAL **********
@@ -329,8 +324,10 @@ public class GoogleAnalytics {
      * @return A Google Analytics Tracker instance.
      */
     public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName) {
+        final GoogleAnalyticsConfig config = new GoogleAnalyticsConfig();
         return requiredParamsBuilder()
-                .endpoint(DEBUG ? GA_DEBUG_ENDPOINT: GA_ENDPOINT)
+                .config(config)
+                .executor(GoogleAnalyticsThreadFactory.createExecutor(config))
                 .protocolVersion(PROTOCOL_VERSION)
                 .trackingId(trackingId)
                 .clientId(clientId)
@@ -344,9 +341,9 @@ public class GoogleAnalytics {
      * Logging level will automatically be set to Level.ALL
      * @param enableDebug True to enable debug mode, False otherwise.
      */
-    public static void setDebug(boolean enableDebug) {
-        DEBUG = enableDebug;
-        LOGGER.setLevel(Level.ALL);
+    public void setDebug(boolean enableDebug) {
+        config.setDebug(enableDebug);
+        log.setLevel(Level.ALL);
     }
 
     /**
@@ -354,12 +351,12 @@ public class GoogleAnalytics {
      * @param logLevel A java.util.logging.LogLevel value.
      *                 Passing in null will reset the log level to the default, Level.SEVERE
      */
-    public static void setLogLevel(Level logLevel) {
+    public void setLogLevel(Level logLevel) {
         if (logLevel == null) {
             // reset to default
             logLevel = DEFAULT_LOG_LEVEL;
         }
-        LOGGER.setLevel(logLevel);
+        log.setLevel(logLevel);
     }
 
     /**
@@ -381,18 +378,15 @@ public class GoogleAnalytics {
      */
     public void send(boolean asynchronous) {
 
-        // ensure that we have the right endpoint configured
-        endpoint = DEBUG ? GA_DEBUG_ENDPOINT : GA_ENDPOINT;
-
         final String url = buildUrlString();
 
         if (asynchronous) {
-            new Thread(new Runnable() {
+            executor.submit(new Runnable() {
                 @Override
                 public void run() {
                     doNetworkOperation(url);
                 }
-            }).start();
+            });
         } else {
             doNetworkOperation(url);
         }
@@ -402,20 +396,23 @@ public class GoogleAnalytics {
     }
 
     protected void doNetworkOperation(String url) {
+        log.info("executing on thread: " + Thread.currentThread().getName());
+
         HttpURLConnection connection = null;
         try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent", getUserAgent());
 
             final int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                LOGGER.warning("Error requesting url: '" + url + "'. Response code: " + responseCode);
+                log.warning("Error requesting url: '" + url + "'. Response code: " + responseCode);
             } else {
-                LOGGER.info("Successfully hit tracker: '" + url + "'");
+                log.info("Successfully hit tracker: '" + url + "'");
             }
 
-            if (DEBUG) {
+            if (config.isDebug()) {
                 StringBuilder content = new StringBuilder();
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
@@ -426,7 +423,7 @@ public class GoogleAnalytics {
                 }
                 bufferedReader.close();
 
-                LOGGER.info(content.toString());
+                log.info(content.toString());
             }
 
         } catch (ProtocolException e) {
@@ -466,7 +463,7 @@ public class GoogleAnalytics {
         if (type == null) throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
 
         String urlString = new CustomStringBuilder()
-                .append(endpoint)
+                .append(config.getEndpoint())
                 .append("?")
                 .append(v())    // protocol version
                 .append(aip())  // anonymize IP
@@ -517,7 +514,8 @@ public class GoogleAnalytics {
 
     }
 
-    private String getUserAgent() {
+    /* package private */
+    String getUserAgent() {
         return new UserAgent(getApplicationName(), getApplicationVersion()).toString();
     }
 }
