@@ -1,6 +1,7 @@
 package com.akoscz.googleanalytics;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.NameValuePair;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -10,6 +11,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +57,12 @@ public class GoogleAnalyticsTest {
         assertQueryParam(url, "tid", trackingId);
         assertQueryParam(url, "cid", String.valueOf(clientId));
         assertQueryParam(url, "an", applicationName);
+
+        // ensure that required field appear in the post params
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("tid", trackingId)));
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cid", String.valueOf(clientId))));
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("an", applicationName)));
     }
 
     @Test
@@ -67,6 +75,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "tid", testTrackingId);
+
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("tid", testTrackingId)));
     }
 
     @Test
@@ -101,6 +112,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "cid", String.valueOf(testClientId));
+
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cid", String.valueOf(testClientId))));
     }
 
     @Test
@@ -120,7 +134,10 @@ public class GoogleAnalyticsTest {
 
         // ensure url is built with proper query param and value
         String url = tracker.build().buildUrlString();
-        assertQueryParam(url, "uid", String.valueOf(testUserId));
+        assertQueryParam(url, "uid", testUserId);
+
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("uid", testUserId)));
     }
 
     @Test
@@ -160,6 +177,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "an", "blah");
+
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("an", "blah")));
     }
 
     @Test
@@ -198,6 +218,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "t", String.valueOf(GoogleAnalytics.HitType.pageview));
+
+        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("t", String.valueOf(GoogleAnalytics.HitType.pageview))));
     }
 
     @Test
@@ -228,6 +251,9 @@ public class GoogleAnalyticsTest {
         String url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "aip", "1");
 
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("aip", "1")));
+
         // ensure the setter works
         tracker.anonymizeIP(false);
         googleAnalytics = tracker.build();
@@ -236,6 +262,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "aip", "0");
+
+        postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("aip", "0")));
     }
 
     @Test
@@ -261,6 +290,9 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         String url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "ds", expectedDataSource);
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ds", expectedDataSource)));
     }
 
     @Test
@@ -302,6 +334,14 @@ public class GoogleAnalyticsTest {
         String url = googleAnalytics.buildUrlString();
         assertQueryParamContainsKeyWithNonEmptyValue(url, "z");
 
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        // ensure that cache buster param never appears in the post params
+        for (NameValuePair param : postParams) {
+            if("z".equals(param.getName())) {
+                fail("cache buster param should not appear in post params!");
+            }
+        }
+
         // ensure the setter works
         tracker.cacheBuster(false);
         googleAnalytics = tracker.build();
@@ -310,6 +350,7 @@ public class GoogleAnalyticsTest {
         // ensure url is built with proper query param and value
         url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "z", null);
+
     }
 
     @Test
@@ -333,6 +374,9 @@ public class GoogleAnalyticsTest {
         assertEquals(testScreenName, googleAnalytics.getScreenName());
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "cd");
         assertQueryParam(googleAnalytics.buildUrlString(), "cd", testScreenName);
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cd", testScreenName)));
     }
 
     @Test
@@ -402,6 +446,9 @@ public class GoogleAnalyticsTest {
         assertEquals(testCategory, googleAnalytics.getCategory());
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ec");
         assertQueryParam(googleAnalytics.buildUrlString(), "ec", testCategory);
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ec", testCategory)));
     }
 
     @Test
@@ -471,6 +518,9 @@ public class GoogleAnalyticsTest {
         assertEquals(testAction, googleAnalytics.getAction());
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ea");
         assertQueryParam(googleAnalytics.buildUrlString(), "ea", testAction);
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ea", testAction)));
     }
 
     @Test
@@ -542,6 +592,9 @@ public class GoogleAnalyticsTest {
         assertEquals(testLabel, googleAnalytics.getLabel());
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "el");
         assertQueryParam(googleAnalytics.buildUrlString(), "el", testLabel);
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("el", testLabel)));
     }
 
     @Test
@@ -591,6 +644,9 @@ public class GoogleAnalyticsTest {
         assertEquals(expectedValue, googleAnalytics.getValue().intValue());
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ev");
         assertQueryParam(googleAnalytics.buildUrlString(), "ev", String.valueOf(expectedValue));
+
+        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ev", String.valueOf(expectedValue))));
     }
 
     @Test
@@ -706,25 +762,26 @@ public class GoogleAnalyticsTest {
         // perform synchronous send so that we do not spin up a worker thread in a test method
         spyGoogleAnalytics.send(false);
 
+        googleAnalytics = spyGoogleAnalytics.getGlobalTracker().build();
         // verify that after we called send(), all non-required params are reset
-        assertNull("'userId' should have been reset.", spyGoogleAnalytics.getUserId());
-        assertNull("'category' should have been reset.", spyGoogleAnalytics.getCategory());
-        assertNull("'action' should have been reset.", spyGoogleAnalytics.getAction());
-        assertNull("'label' should have been reset.", spyGoogleAnalytics.getLabel());
-        assertNull("'value' should have been reset.", spyGoogleAnalytics.getValue());
-        assertNull("'type' should have been reset.", spyGoogleAnalytics.getType());
-        assertNull("'applicationVersion' should have been reset.", spyGoogleAnalytics.getApplicationVersion());
-        assertNull("'applicationId' should have been reset.", spyGoogleAnalytics.getApplicationId());
-        assertNull("'screenName' should have been reset.", spyGoogleAnalytics.getScreenName());
-        assertNull("'dataSource' should have been reset.", spyGoogleAnalytics.getDataSource());
-        assertNull("'anonymizeIP' should have been reset.", spyGoogleAnalytics.getAnonymizeIP());
-        assertNull("'cacheBuster' should have been reset.", spyGoogleAnalytics.getCacheBuster());
+        assertNull("'userId' should have been reset.", googleAnalytics.getUserId());
+        assertNull("'category' should have been reset.", googleAnalytics.getCategory());
+        assertNull("'action' should have been reset.", googleAnalytics.getAction());
+        assertNull("'label' should have been reset.", googleAnalytics.getLabel());
+        assertNull("'value' should have been reset.", googleAnalytics.getValue());
+        assertNull("'type' should have been reset.", googleAnalytics.getType());
+        assertNull("'applicationVersion' should have been reset.", googleAnalytics.getApplicationVersion());
+        assertNull("'applicationId' should have been reset.", googleAnalytics.getApplicationId());
+        assertNull("'screenName' should have been reset.", googleAnalytics.getScreenName());
+        assertNull("'dataSource' should have been reset.", googleAnalytics.getDataSource());
+        assertNull("'anonymizeIP' should have been reset.", googleAnalytics.getAnonymizeIP());
+        assertNull("'cacheBuster' should have been reset.", googleAnalytics.getCacheBuster());
 
         // verify that required params are retained
-        assertEquals(trackingId, spyGoogleAnalytics.getTrackingId());
-        assertEquals(clientId, spyGoogleAnalytics.getClientId());
-        assertEquals(applicationName, spyGoogleAnalytics.getApplicationName());
-        assertEquals(1, spyGoogleAnalytics.getProtocolVersion());
+        assertEquals(trackingId, googleAnalytics.getTrackingId());
+        assertEquals(clientId, googleAnalytics.getClientId());
+        assertEquals(applicationName, googleAnalytics.getApplicationName());
+        assertEquals(1, googleAnalytics.getProtocolVersion());
         assertEquals("https://www.google-analytics.com/collect", googleAnalytics.getConfig().getEndpoint());
     }
 

@@ -1,9 +1,10 @@
 package com.akoscz.googleanalytics;
 
+import com.akoscz.googleanalytics.util.NonNullOrEmptyStringBuilder;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
@@ -23,11 +24,9 @@ import org.apache.http.util.EntityUtils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.UUID;
@@ -62,9 +61,13 @@ public class GoogleAnalytics {
     private final CloseableHttpClient httpClient;
 
     @Getter
+    private static Tracker globalTracker;
+
+    @Getter
     private final GoogleAnalyticsConfig config;
 
-    private ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
+    @Getter(value = AccessLevel.NONE)
+    private final ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
 
     // *****************************
     // ********** GENERAL **********
@@ -359,7 +362,7 @@ public class GoogleAnalytics {
     public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName, GoogleAnalyticsConfig config) {
         if (config == null) config = new GoogleAnalyticsConfig();
 
-        return requiredParamsBuilder()
+        Tracker tracker = requiredParamsBuilder()
                 .config(config)
                 .executor(GoogleAnalyticsThreadFactory.createExecutor(config))
                 .httpClient(createHttpClient(config))
@@ -367,6 +370,11 @@ public class GoogleAnalytics {
                 .trackingId(trackingId)
                 .clientId(clientId)
                 .applicationName(applicationName);
+
+        // set the global tracker instance
+        tracker.build().globalTracker = tracker;
+
+        return tracker;
     }
 
     /**
@@ -378,6 +386,7 @@ public class GoogleAnalytics {
      */
     public void setDebug(boolean enableDebug) {
         config.setDebug(enableDebug);
+        globalTracker.config(config);
         log.setLevel(Level.ALL);
     }
 
@@ -452,7 +461,9 @@ public class GoogleAnalytics {
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("GET");
-            connection.setRequestProperty("User-Agent", getUserAgent());
+            if (StringUtils.isNotEmpty(config.getUserAgent())) {
+                connection.setRequestProperty("User-Agent", config.getUserAgent());
+            }
 
             final int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -514,18 +525,19 @@ public class GoogleAnalytics {
      * Clear all non-required fields
      */
     private void resetTracker() {
-        userId = null;
-        category = null;
-        action = null;
-        label = null;
-        value = null;
-        type = null;
-        applicationVersion = null;
-        applicationId = null;
-        screenName = null;
-        dataSource = null;
-        anonymizeIP = null;
-        cacheBuster = null;
+        globalTracker
+            .userId(null)
+            .category(null)
+            .action(null)
+            .label(null)
+            .value(null)
+            .type(null)
+            .applicationVersion(null)
+            .applicationId(null)
+            .screenName(null)
+            .dataSource(null)
+            .anonymizeIP(null)
+            .cacheBuster(null);
     }
 
     /**
@@ -535,7 +547,7 @@ public class GoogleAnalytics {
     public String buildUrlString() {
         if (type == null) throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
 
-        String urlString = new CustomStringBuilder()
+        String urlString = new NonNullOrEmptyStringBuilder()
                 .append(config.getEndpoint())
                 .append(getProtocolVersionParam().toStringWithPrefix("?"))    // protocol version
                 .append(getAnonymizeIpParam().toStringWithPrefix("&"))  // anonymize IP
@@ -570,8 +582,8 @@ public class GoogleAnalytics {
         postParameters.add(getDataSourceParam());
         postParameters.add(getTrackingIdParam());
         postParameters.add(getClientIdParam());
+        postParameters.add(getCategoryParam());
         postParameters.add(getUserIdParam());
-        postParameters.add(getCacheBusterParam());
         postParameters.add(getActionParam());
         postParameters.add(getLabelParam());
         postParameters.add(getValueParam());
@@ -582,35 +594,6 @@ public class GoogleAnalytics {
         postParameters.add(getUserIdParam());
 
         return postParameters;
-    }
-
-    /**
-     * A custom string builder that does not append null or empty character sequences
-     */
-    class CustomStringBuilder {
-        StringBuilder builder;
-
-        CustomStringBuilder() {
-            builder = new StringBuilder();
-        }
-
-        public CustomStringBuilder append(CharSequence charSequence) {
-            // do not append null or empty character sequences
-            if (charSequence != null && charSequence.length() >= 0) {
-                builder.append(charSequence);
-            }
-            return this;
-        }
-
-        public String toString() {
-            return builder.toString();
-        }
-
-    }
-
-    /* package private */
-    private String getUserAgent() {
-        return new UserAgent(getApplicationName(), getApplicationVersion()).toString();
     }
 
     private static CloseableHttpClient createHttpClient(GoogleAnalyticsConfig config) {
