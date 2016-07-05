@@ -7,9 +7,10 @@ A quick and simple *limited feature* implemenetation of the Google Analytics [Me
 This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnalytics.java) implementation relies on the [Lombok](https://projectlombok.org/index.html) code generation annotation library to generate a [Builder](https://projectlombok.org/features/Builder.html) class to allow for composing the fields of a GoogleAnalytics request.
 
 **Notes:** 
-* Only the `/collect` and `/debug/collect` endpoints are supported by means of a `GET` request.
-* The `/batch` endpoit is NOT supported, neither are `POST` requests.
-* To point to the `/debug/collect` endpoint, use `GoogleAnalytics.setDebug(true)`. Logging level will be set to `Level.ALL` for verbose logging.
+* The `/collect` and `/debug/collect` endpoints are supported.
+* The `/batch` endpoit is not supported.
+* Both `POST` and `GET` http request types are availabe.  `POST` is the default.
+* To enable debug mode use `GoogleAnalytics.setDebug(true)`. It will update the endpoint to `/debug/collect` and set logging level to `Level.ALL` for verbose logging.
 * To control the logging level, use `GoogleAnalytics.setLogLevel(Level)`.  The default logging level is `Level.SEVERE`.
 * Invoking the `GoogleAnalytics.send()` method will perform the network I/O asynchronously by spinning up a new Thread for doing the work.
 * For sychronous operation, use `GoogleAnalytics.send(false)` which will perform the network I/O on the thread it was invoked from.
