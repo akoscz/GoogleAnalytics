@@ -10,6 +10,12 @@ import lombok.Setter;
  *  - debug on/off.  Setting debug to true will change the endpoint param to the debug endpoint.
  */
 public class GoogleAnalyticsConfig {
+
+    public enum HttpMethod {
+        POST,
+        GET;
+    }
+
     private static final String GA_ENDPOINT = "https://www.google-analytics.com/collect";
     private static final String GA_DEBUG_ENDPOINT = "https://www.google-analytics.com/debug/collect";
     private static final String GA_THREAD_NAME_FORMAT = "googleanalytics-thread-{0}";
@@ -30,11 +36,27 @@ public class GoogleAnalyticsConfig {
     private int threadTimeout = DEFAULT_THREAD_TIMEOUT;
     @Setter @Getter
     private String threadNameFormat = GA_THREAD_NAME_FORMAT;
+    @Setter @Getter
+    private String proxyHost;
+    @Setter @Getter
+    private int proxyPort;
+    @Setter @Getter
+    private String proxyUserName;
+    @Setter @Getter
+    private String proxyPassword;
+    @Setter @Getter
+    private String userAgent;
+    @Setter @Getter
+    private HttpMethod httpMethod = HttpMethod.POST;
 
     @Getter
     private boolean debug;
     public void setDebug(boolean enableDebug) {
         debug = enableDebug;
         setEndpoint(debug ? GA_DEBUG_ENDPOINT: GA_ENDPOINT);
+    }
+
+    public boolean isHttpMethodGet() {
+        return httpMethod == HttpMethod.GET;
     }
 }

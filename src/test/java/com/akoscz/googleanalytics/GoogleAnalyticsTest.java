@@ -33,7 +33,10 @@ public class GoogleAnalyticsTest {
 
     @Before
     public void beforeTest() {
-        tracker = GoogleAnalytics.buildTracker(trackingId, clientId, applicationName)
+        GoogleAnalyticsConfig config = new GoogleAnalyticsConfig();
+        config.setHttpMethod(GoogleAnalyticsConfig.HttpMethod.GET);
+
+        tracker = GoogleAnalytics.buildTracker(trackingId, clientId, applicationName, config)
             .type(GoogleAnalytics.HitType.pageview);
     }
 
@@ -697,8 +700,8 @@ public class GoogleAnalyticsTest {
                     .build();
 
         GoogleAnalytics spyGoogleAnalytics = spy(googleAnalytics);
-        // mock out doNetworkOperation method so that we do not hit the network
-        doNothing().when(spyGoogleAnalytics).doNetworkOperation(anyString());
+        // mock out doGetNetworkOperation method so that we do not hit the network
+        doNothing().when(spyGoogleAnalytics).doGetNetworkOperation(anyString());
 
         // perform synchronous send so that we do not spin up a worker thread in a test method
         spyGoogleAnalytics.send(false);
@@ -789,25 +792,17 @@ public class GoogleAnalyticsTest {
         assertEquals(Level.SEVERE, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
     }
 
-    @Test
-    public void testGetUserAgent() {
-        GoogleAnalytics googleAnalytics = tracker.applicationVersion("testVersion1").build();
-        UserAgent expectedUserAgent = new UserAgent(applicationName, "testVersion1");
-
-        assertEquals(expectedUserAgent.toString(), googleAnalytics.getUserAgent().toString());
-    }
-
     /***********************/
     /** TEST UTIL METHODS **/
     /***********************/
 
-    private void assertQueryParam(String url, String key, String expectedValue) throws UnsupportedEncodingException, MalformedURLException {
+    private void assertQueryParam(String url, String key, String expectedValue) {
         Map<String, String> params = splitQuery(url);
         String actualValue = params.get(key);
         assertEquals(expectedValue, actualValue);
     }
 
-    private void assertQueryParamContainsKeyWithNonEmptyValue(String url, String key) throws UnsupportedEncodingException, MalformedURLException {
+    private void assertQueryParamContainsKeyWithNonEmptyValue(String url, String key) {
         Map<String, String> params = splitQuery(url);
         assertTrue("expected '" + key + "' query param but it does not exist. url=" + url, params.containsKey(key));
 
@@ -817,19 +812,24 @@ public class GoogleAnalyticsTest {
         assertTrue("'" + key + "' query param cannot be empty. url=" + url, !actualValue.isEmpty());
     }
 
-    private void assertQueryParamAbsent(String url, String key) throws UnsupportedEncodingException, MalformedURLException {
+    private void assertQueryParamAbsent(String url, String key) {
         Map<String, String> params = splitQuery(url);
         assertFalse("expected '" + key + "' query param to be absent from url=" + url, params.containsKey(key));
     }
 
-    public static Map<String, String> splitQuery(String urlString) throws UnsupportedEncodingException, MalformedURLException {
-        URL url = new URL(urlString);
+    public static Map<String, String> splitQuery(String urlString) {
         Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-        String query = url.getQuery();
-        String[] pairs = query.split("&");
-        for (String pair : pairs) {
-            int idx = pair.indexOf("=");
-            query_pairs.put(URLDecoder.decode(pair.substring(0, idx), "UTF-8"), URLDecoder.decode(pair.substring(idx + 1), "UTF-8"));
+        try {
+
+            URL url = new URL(urlString);
+            String query = url.getQuery();
+            String[] pairs = query.split("&");
+            for (String pair : pairs) {
+                int idx = pair.indexOf("=");
+                query_pairs.put(URLDecoder.decode(pair.substring(0, idx), "UTF-8"), URLDecoder.decode(pair.substring(idx + 1), "UTF-8"));
+            }
+        } catch (Exception ex) {
+            fail("failed in splitQuery(String url): " + ex.toString() + "\nurl='"  + urlString + "'");
         }
         return query_pairs;
     }

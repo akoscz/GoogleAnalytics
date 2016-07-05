@@ -1,9 +1,24 @@
 package com.akoscz.googleanalytics;
 
 import lombok.Builder;
+import lombok.Cleanup;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHost;
+import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.util.EntityUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -13,6 +28,8 @@ import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -43,9 +60,12 @@ public class GoogleAnalytics {
     private static final Level DEFAULT_LOG_LEVEL = Level.SEVERE;
 
     private final ThreadPoolExecutor executor;
+    private final CloseableHttpClient httpClient;
 
     @Getter
     private final GoogleAnalyticsConfig config;
+
+    private ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
 
     // *****************************
     // ********** GENERAL **********
@@ -60,7 +80,7 @@ public class GoogleAnalytics {
     @Getter
     private int protocolVersion;
     private String v() {
-        return "v=" + protocolVersion;
+        return (config.isHttpMethodGet() ? "?" : "") + "v=" + protocolVersion;
     }
 
 
@@ -77,7 +97,7 @@ public class GoogleAnalytics {
         if (trackingId == null || trackingId.isEmpty()) throw new IllegalArgumentException("'trackingId' cannot be null or empty!");
         if (!Pattern.matches("[U][A]-[0-9]+-[0-9]+", trackingId)) throw new IllegalArgumentException("Malformed trackingId: '" + trackingId + "'.  Expected: 'UA-[0-9]+-[0-9]+'");
 
-        return "&tid=" + URLEncoder.encode(trackingId, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "tid=" + URLEncoder.encode(trackingId, ENCODING);
     }
 
     /**
@@ -90,7 +110,7 @@ public class GoogleAnalytics {
     private Boolean anonymizeIP;
     private String aip() {
         if (anonymizeIP == null) return null;
-        return "&aip=" + (anonymizeIP ? "1" : "0");
+        return (config.isHttpMethodGet() ? "&" : "") + "aip=" + (anonymizeIP ? "1" : "0");
     }
 
     /**
@@ -106,7 +126,7 @@ public class GoogleAnalytics {
     @SneakyThrows(UnsupportedEncodingException.class)
     private String ds() {
         if (dataSource == null || dataSource.isEmpty()) return null;
-        return "&ds=" + URLEncoder.encode(dataSource, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "ds=" + URLEncoder.encode(dataSource, ENCODING);
     }
 
     /**
@@ -121,7 +141,7 @@ public class GoogleAnalytics {
     private Boolean cacheBuster;
     private String z() {
         if (cacheBuster == null || !cacheBuster) return null;
-        return "&z=" + new Random().nextLong();
+        return (config.isHttpMethodGet() ? "&" : "") + "z=" + new Random().nextLong();
     }
 
     // *****************************
@@ -141,7 +161,7 @@ public class GoogleAnalytics {
     @SneakyThrows(UnsupportedEncodingException.class)
     private String cid() {
         if (clientId == null) throw new IllegalArgumentException("'clientId' cannot be null!");
-        return "&cid=" + URLEncoder.encode(clientId.toString(), ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "cid=" + URLEncoder.encode(clientId.toString(), ENCODING);
     }
 
     /**
@@ -156,7 +176,7 @@ public class GoogleAnalytics {
     @SneakyThrows(UnsupportedEncodingException.class)
     private String uid() {
         if (userId == null || userId.isEmpty()) return null;
-        return "&uid=" + URLEncoder.encode(userId, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "uid=" + URLEncoder.encode(userId, ENCODING);
     }
 
     // *****************************
@@ -174,7 +194,7 @@ public class GoogleAnalytics {
     @SneakyThrows(UnsupportedEncodingException.class)
     private String t() {
         if (type == null) throw new IllegalArgumentException("'type' cannot be null!");
-        return "&t=" + URLEncoder.encode(type.name(), ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "t=" + URLEncoder.encode(type.name(), ENCODING);
     }
 
     // *****************************
@@ -198,7 +218,7 @@ public class GoogleAnalytics {
         }
         if (screenName == null || screenName.isEmpty()) return null;
         if (screenName.getBytes().length > 2048) throw new RuntimeException("'screenName' cannot exceed 2048 bytes!");
-        return "&cd=" + URLEncoder.encode(screenName, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "cd=" + URLEncoder.encode(screenName, ENCODING);
     }
 
     // *****************************
@@ -216,7 +236,7 @@ public class GoogleAnalytics {
     private String an() {
         if (applicationName == null || applicationName.isEmpty()) throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
         if (applicationName.getBytes().length > 100) throw new RuntimeException("'applicationName' cannot exceed 100 bytes!");
-        return "&an=" + URLEncoder.encode(applicationName, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "an=" + URLEncoder.encode(applicationName, ENCODING);
     }
 
     /**
@@ -230,7 +250,7 @@ public class GoogleAnalytics {
     private String av() {
         if (applicationVersion == null || applicationVersion.isEmpty()) return null;
         if (applicationVersion.getBytes().length > 100) throw new RuntimeException("'applicationVersion' cannot exceed 100 bytes!");
-        return "&av=" + URLEncoder.encode(applicationVersion, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "av=" + URLEncoder.encode(applicationVersion, ENCODING);
     }
 
     /**
@@ -244,7 +264,7 @@ public class GoogleAnalytics {
     private String aid() {
         if (applicationId == null || applicationId.isEmpty()) return null;
         if (applicationId.getBytes().length > 150) throw new RuntimeException("'applicationId' cannot exceed 150 bytes!");
-        return "&aid=" + URLEncoder.encode(applicationId, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "aid=" + URLEncoder.encode(applicationId, ENCODING);
     }
 
     // *****************************
@@ -265,7 +285,7 @@ public class GoogleAnalytics {
         }
         if (category == null || category.isEmpty()) return null;
         if (category.getBytes().length > 150) throw new RuntimeException("'category' cannot exceed 150 bytes!");
-        return "&ec=" + URLEncoder.encode(category, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "ec=" + URLEncoder.encode(category, ENCODING);
     }
 
     /**
@@ -282,7 +302,7 @@ public class GoogleAnalytics {
         }
         if (action == null || action.isEmpty()) return null;
         if (action.getBytes().length > 500) throw new RuntimeException("event 'action' cannot exceed 500 bytes!");
-        return "&ea=" + URLEncoder.encode(action, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "ea=" + URLEncoder.encode(action, ENCODING);
     }
 
     /**
@@ -296,7 +316,7 @@ public class GoogleAnalytics {
     private String el() {
         if (label == null || label.isEmpty()) return null;
         if (label.getBytes().length > 500) throw new RuntimeException("event 'label' cannot exceed 500 bytes!");
-        return "&el=" + URLEncoder.encode(label, ENCODING);
+        return (config.isHttpMethodGet() ? "&" : "") + "el=" + URLEncoder.encode(label, ENCODING);
     }
 
     /**
@@ -309,7 +329,7 @@ public class GoogleAnalytics {
     private String ev() {
         if (value == null) return null;
         if (value < 0) throw new IllegalArgumentException("event 'value' cannot be negative!");
-        return "&ev=" + value;
+        return (config.isHttpMethodGet() ? "&" : "") + "ev=" + value;
     }
 
     // *****************************
@@ -317,17 +337,31 @@ public class GoogleAnalytics {
     // *****************************
 
     /**
-     * Build a Tracker instance by which you can compose your GoogleAnalytics tracking request.
+     * Build a Tracker instance with default config values by which you can compose your GoogleAnalytics tracking request.
      * @param trackingId Required Valid Google Analytics Tracking Id.
      * @param clientId Required Valid Client Id UUID.
      * @param applicationName Required non-null non-empty Application Name.
      * @return A Google Analytics Tracker instance.
      */
     public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName) {
-        final GoogleAnalyticsConfig config = new GoogleAnalyticsConfig();
+        return GoogleAnalytics.buildTracker(trackingId, clientId, applicationName, null);
+    }
+
+    /**
+     * Build a Tracker instance by which you can compose your GoogleAnalytics tracking request.
+     * @param trackingId Required Valid Google Analytics Tracking Id.
+     * @param clientId Required Valid Client Id UUID.
+     * @param applicationName Required non-null non-empty Application Name.
+     * @param config The configuration parameters for the tracker.  If null, default config values will be used.
+     * @return A Google Analytics Tracker instance.
+     */
+    public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName, GoogleAnalyticsConfig config) {
+        if (config == null) config = new GoogleAnalyticsConfig();
+
         return requiredParamsBuilder()
                 .config(config)
                 .executor(GoogleAnalyticsThreadFactory.createExecutor(config))
+                .httpClient(createHttpClient(config))
                 .protocolVersion(PROTOCOL_VERSION)
                 .trackingId(trackingId)
                 .clientId(clientId)
@@ -378,29 +412,43 @@ public class GoogleAnalytics {
      */
     public void send(boolean asynchronous) {
 
-        final String url = buildUrlString();
+        if (config.isHttpMethodGet()) {
+            final String url = buildUrlString();
+            if (asynchronous) {
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        doGetNetworkOperation(url);
+                    }
+                });
+            } else {
+                doGetNetworkOperation(url);
+            }
+        } else { // POST method
+            final ArrayList<NameValuePair> postParams = buildPostParams();
 
-        if (asynchronous) {
-            executor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    doNetworkOperation(url);
-                }
-            });
-        } else {
-            doNetworkOperation(url);
+            if (asynchronous) {
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        doPostNetworkOperation(postParams);
+                    }
+                });
+            } else {
+                doPostNetworkOperation(postParams);
+            }
+
         }
 
         // clear all non-required fields
         resetTracker();
     }
 
-    protected void doNetworkOperation(String url) {
+    protected void doGetNetworkOperation(String url) {
         log.info("executing on thread: " + Thread.currentThread().getName());
 
         HttpURLConnection connection = null;
         try {
-            connection = (HttpURLConnection) new URL(url).openConnection();
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent", getUserAgent());
@@ -414,15 +462,13 @@ public class GoogleAnalytics {
 
             if (config.isDebug()) {
                 StringBuilder content = new StringBuilder();
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                @Cleanup BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
                 String line;
                 // read from the urlconnection via the bufferedreader
                 while ((line = bufferedReader.readLine()) != null) {
                     content.append(line + "\n");
                 }
-                bufferedReader.close();
-
                 log.info(content.toString());
             }
 
@@ -434,6 +480,32 @@ public class GoogleAnalytics {
             if (connection != null) {
                 connection.disconnect();
             }
+        }
+    }
+
+    private void doPostNetworkOperation(ArrayList<NameValuePair> postParameters) {
+        log.info("executing on thread: " + Thread.currentThread().getName());
+
+        try {
+            HttpPost httpPost = new HttpPost(config.getEndpoint());
+            httpPost.setEntity(new UrlEncodedFormEntity(postParameters, "UTF-8"));
+
+            @Cleanup CloseableHttpResponse httpResponse = httpClient.execute(httpPost);
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                log.warning("Error posting to endpoint: '" + config.getEndpoint() + "'. Response code: '" + responseCode + "'\n" + httpPost.toString());
+            } else {
+                log.info("Successfully posted params to tracker: '" + postParameters + "'");
+            }
+
+            if (config.isDebug()) {
+                String responseBody = EntityUtils.toString(httpResponse.getEntity(), "UTF-8");
+                log.info(responseBody);
+            }
+
+            EntityUtils.consumeQuietly(httpResponse.getEntity());
+        } catch (Exception e) {
+            log.warning("Problem sending post request: " + e.toString());
         }
     }
 
@@ -464,7 +536,6 @@ public class GoogleAnalytics {
 
         String urlString = new CustomStringBuilder()
                 .append(config.getEndpoint())
-                .append("?")
                 .append(v())    // protocol version
                 .append(aip())  // anonymize IP
                 .append(ds())   // data source
@@ -488,6 +559,12 @@ public class GoogleAnalytics {
         }
 
         return urlString;
+    }
+
+    public ArrayList<NameValuePair> buildPostParams() {
+        postParameters.clear();
+        // TODO: populate postParams list with key/value pairs
+        return postParameters;
     }
 
     /**
@@ -515,7 +592,32 @@ public class GoogleAnalytics {
     }
 
     /* package private */
-    String getUserAgent() {
+    private String getUserAgent() {
         return new UserAgent(getApplicationName(), getApplicationVersion()).toString();
+    }
+
+    private static CloseableHttpClient createHttpClient(GoogleAnalyticsConfig config) {
+        PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
+        connManager.setDefaultMaxPerRoute(config.getMaxThreads());
+        connManager.setMaxTotal(config.getMaxThreads());
+        HttpClientBuilder builder = HttpClients.custom().setConnectionManager(connManager);
+
+        if (StringUtils.isNotEmpty(config.getUserAgent())) {
+            builder.setUserAgent(config.getUserAgent());
+        }
+
+        if (StringUtils.isNotEmpty(config.getProxyHost())) {
+            builder.setProxy(new HttpHost(config.getProxyHost(), config.getProxyPort()));
+
+            if (StringUtils.isNotEmpty(config.getProxyUserName())) {
+                BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                credentialsProvider.setCredentials(
+                        new AuthScope(config.getProxyHost(), config.getProxyPort()),
+                        new UsernamePasswordCredentials(config.getProxyUserName(), config.getProxyPassword()));
+                builder.setDefaultCredentialsProvider(credentialsProvider);
+            }
+        }
+
+        return builder.build();
     }
 }
