@@ -29,7 +29,6 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -79,10 +78,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private int protocolVersion;
-    private String v() {
-        return (config.isHttpMethodGet() ? "?" : "") + "v=" + protocolVersion;
+    private static final String PROTOCOL_VERSION_KEY = "v";
+    private GoogleAnalyticsParameter getProtocolVersionParam() {
+        return GoogleAnalyticsParameter.of(PROTOCOL_VERSION_KEY, String.valueOf(protocolVersion));
     }
-
 
     /**
      * Required for all hit types.
@@ -92,12 +91,12 @@ public class GoogleAnalytics {
      */
     @Getter
     private String trackingId;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String tid() {
+    private static final String TRACKING_ID_KEY = "tid";
+    private GoogleAnalyticsParameter getTrackingIdParam() {
         if (trackingId == null || trackingId.isEmpty()) throw new IllegalArgumentException("'trackingId' cannot be null or empty!");
         if (!Pattern.matches("[U][A]-[0-9]+-[0-9]+", trackingId)) throw new IllegalArgumentException("Malformed trackingId: '" + trackingId + "'.  Expected: 'UA-[0-9]+-[0-9]+'");
 
-        return (config.isHttpMethodGet() ? "&" : "") + "tid=" + URLEncoder.encode(trackingId, ENCODING);
+        return GoogleAnalyticsParameter.of(TRACKING_ID_KEY, String.valueOf(trackingId));
     }
 
     /**
@@ -108,9 +107,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private Boolean anonymizeIP;
-    private String aip() {
-        if (anonymizeIP == null) return null;
-        return (config.isHttpMethodGet() ? "&" : "") + "aip=" + (anonymizeIP ? "1" : "0");
+    private static final String ANONYIZE_IP_KEY = "aip";
+    private GoogleAnalyticsParameter getAnonymizeIpParam() {
+        if (anonymizeIP == null) return GoogleAnalyticsParameter.EMPTY;
+        return GoogleAnalyticsParameter.of(ANONYIZE_IP_KEY, anonymizeIP ? "1" : "0");
     }
 
     /**
@@ -123,10 +123,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private String dataSource;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String ds() {
-        if (dataSource == null || dataSource.isEmpty()) return null;
-        return (config.isHttpMethodGet() ? "&" : "") + "ds=" + URLEncoder.encode(dataSource, ENCODING);
+    private static final String DATA_SOURCE_KEY = "ds";
+    private GoogleAnalyticsParameter getDataSourceParam() {
+        if (dataSource == null || dataSource.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
+        return GoogleAnalyticsParameter.of(DATA_SOURCE_KEY, dataSource);
     }
 
     /**
@@ -139,9 +139,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private Boolean cacheBuster;
-    private String z() {
-        if (cacheBuster == null || !cacheBuster) return null;
-        return (config.isHttpMethodGet() ? "&" : "") + "z=" + new Random().nextLong();
+    private static final String CACHE_BUSTER_KEY = "z";
+    private GoogleAnalyticsParameter getCacheBusterParam() {
+        if (cacheBuster == null || !cacheBuster) return GoogleAnalyticsParameter.EMPTY;
+        return GoogleAnalyticsParameter.of(CACHE_BUSTER_KEY, String.valueOf(new Random().nextLong()));
     }
 
     // *****************************
@@ -158,10 +159,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private UUID clientId;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String cid() {
+    private static final String CLIENT_ID_KEY = "cid";
+    private GoogleAnalyticsParameter getClientIdParam() {
         if (clientId == null) throw new IllegalArgumentException("'clientId' cannot be null!");
-        return (config.isHttpMethodGet() ? "&" : "") + "cid=" + URLEncoder.encode(clientId.toString(), ENCODING);
+        return GoogleAnalyticsParameter.of(CLIENT_ID_KEY, clientId.toString());
     }
 
     /**
@@ -173,10 +174,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private String userId;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String uid() {
-        if (userId == null || userId.isEmpty()) return null;
-        return (config.isHttpMethodGet() ? "&" : "") + "uid=" + URLEncoder.encode(userId, ENCODING);
+    private static final String USER_ID_KEY = "uid";
+    private GoogleAnalyticsParameter getUserIdParam() {
+        if (userId == null || userId.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
+        return GoogleAnalyticsParameter.of(USER_ID_KEY, userId);
     }
 
     // *****************************
@@ -191,10 +192,10 @@ public class GoogleAnalytics {
      */
     @Getter
     private HitType type;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String t() {
+    private static final String HIT_TYPE_KEY = "t";
+    private GoogleAnalyticsParameter getHitTypeParam() {
         if (type == null) throw new IllegalArgumentException("'type' cannot be null!");
-        return (config.isHttpMethodGet() ? "&" : "") + "t=" + URLEncoder.encode(type.name(), ENCODING);
+        return GoogleAnalyticsParameter.of(HIT_TYPE_KEY, type.name());
     }
 
     // *****************************
@@ -211,16 +212,15 @@ public class GoogleAnalytics {
      */
     @Getter
     private String screenName;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String cd() {
+    private static final String SCREEN_NAME_KEY = "cd";
+    private GoogleAnalyticsParameter getScreenNameParam() {
         if (type == HitType.screenview && (screenName == null || screenName.isEmpty())) {
             throw new IllegalArgumentException("'screenName' cannot be null or empty when HitType.screenview is specified!");
         }
-        if (screenName == null || screenName.isEmpty()) return null;
+        if (screenName == null || screenName.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (screenName.getBytes().length > 2048) throw new RuntimeException("'screenName' cannot exceed 2048 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "cd=" + URLEncoder.encode(screenName, ENCODING);
+        return GoogleAnalyticsParameter.of(SCREEN_NAME_KEY, screenName);
     }
-
     // *****************************
     // **** APPLICATION TRACKING ***
     // *****************************
@@ -232,11 +232,11 @@ public class GoogleAnalytics {
      */
     @Getter
     private String applicationName;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String an() {
+    private static final String APPLICATION_NAME_KEY = "an";
+    private GoogleAnalyticsParameter getApplicationNameParam() {
         if (applicationName == null || applicationName.isEmpty()) throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
         if (applicationName.getBytes().length > 100) throw new RuntimeException("'applicationName' cannot exceed 100 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "an=" + URLEncoder.encode(applicationName, ENCODING);
+        return GoogleAnalyticsParameter.of(APPLICATION_NAME_KEY, applicationName);
     }
 
     /**
@@ -246,11 +246,11 @@ public class GoogleAnalytics {
      */
     @Getter
     private String applicationVersion;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String av() {
-        if (applicationVersion == null || applicationVersion.isEmpty()) return null;
+    private static final String APPLICATION_VERSION_KEY = "av";
+    private GoogleAnalyticsParameter getApplicationVersionParam() {
+        if (applicationVersion == null || applicationVersion.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (applicationVersion.getBytes().length > 100) throw new RuntimeException("'applicationVersion' cannot exceed 100 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "av=" + URLEncoder.encode(applicationVersion, ENCODING);
+        return GoogleAnalyticsParameter.of(APPLICATION_VERSION_KEY, applicationVersion);
     }
 
     /**
@@ -260,11 +260,11 @@ public class GoogleAnalytics {
      */
     @Getter
     private String applicationId;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String aid() {
-        if (applicationId == null || applicationId.isEmpty()) return null;
+    private static final String APPLICATION_ID_KEY = "aid";
+    private GoogleAnalyticsParameter getApplicationIdParam() {
+        if (applicationId == null || applicationId.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (applicationId.getBytes().length > 150) throw new RuntimeException("'applicationId' cannot exceed 150 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "aid=" + URLEncoder.encode(applicationId, ENCODING);
+        return GoogleAnalyticsParameter.of(APPLICATION_ID_KEY, applicationId);
     }
 
     // *****************************
@@ -278,14 +278,14 @@ public class GoogleAnalytics {
      */
     @Getter
     private String category;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String ec() {
+    private static final String CATEGORY_KEY = "ec";
+    private GoogleAnalyticsParameter getCategoryParam() {
         if (type == HitType.event && (category == null || category.isEmpty())) {
             throw new IllegalArgumentException("event 'category' cannot be null or empty when HitType.event is specified!");
         }
-        if (category == null || category.isEmpty()) return null;
+        if (category == null || category.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (category.getBytes().length > 150) throw new RuntimeException("'category' cannot exceed 150 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "ec=" + URLEncoder.encode(category, ENCODING);
+        return GoogleAnalyticsParameter.of(CATEGORY_KEY, category);
     }
 
     /**
@@ -295,14 +295,14 @@ public class GoogleAnalytics {
      */
     @Getter
     private String action;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String ea() {
+    private static final String ACTION_KEY = "ea";
+    private GoogleAnalyticsParameter getActionParam() {
         if (type == HitType.event && (action == null || action.isEmpty())) {
             throw new IllegalArgumentException("event 'action' cannot be null or empty when HitType.event is specified!");
         }
-        if (action == null || action.isEmpty()) return null;
+        if (action == null || action.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (action.getBytes().length > 500) throw new RuntimeException("event 'action' cannot exceed 500 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "ea=" + URLEncoder.encode(action, ENCODING);
+        return GoogleAnalyticsParameter.of(ACTION_KEY, action);
     }
 
     /**
@@ -312,11 +312,11 @@ public class GoogleAnalytics {
      */
     @Getter
     private String label;
-    @SneakyThrows(UnsupportedEncodingException.class)
-    private String el() {
-        if (label == null || label.isEmpty()) return null;
+    private static final String LABEL_KEY = "el";
+    private GoogleAnalyticsParameter getLabelParam() {
+        if (label == null || label.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (label.getBytes().length > 500) throw new RuntimeException("event 'label' cannot exceed 500 bytes!");
-        return (config.isHttpMethodGet() ? "&" : "") + "el=" + URLEncoder.encode(label, ENCODING);
+        return GoogleAnalyticsParameter.of(LABEL_KEY, label);
     }
 
     /**
@@ -326,10 +326,11 @@ public class GoogleAnalytics {
      */
     @Getter
     private Integer value;
-    private String ev() {
-        if (value == null) return null;
+    private static final String VALUE_KEY = "ev";
+    private GoogleAnalyticsParameter getValueParam() {
+        if (value == null) return GoogleAnalyticsParameter.EMPTY;
         if (value < 0) throw new IllegalArgumentException("event 'value' cannot be negative!");
-        return (config.isHttpMethodGet() ? "&" : "") + "ev=" + value;
+        return GoogleAnalyticsParameter.of(VALUE_KEY, value.toString());
     }
 
     // *****************************
@@ -536,22 +537,22 @@ public class GoogleAnalytics {
 
         String urlString = new CustomStringBuilder()
                 .append(config.getEndpoint())
-                .append(v())    // protocol version
-                .append(aip())  // anonymize IP
-                .append(ds())   // data source
-                .append(tid())  // tracking id
-                .append(cid())  // client id
-                .append(uid())  // user id
-                .append(ec())   // event category
-                .append(ea())   // event action
-                .append(el())   // event label
-                .append(ev())   // event value
-                .append(t())    // event type
-                .append(an())   // application name
-                .append(av())   // application version
-                .append(aid())  // application id
-                .append(cd())   // screen name
-                .append(z())    // cache buster
+                .append(getProtocolVersionParam().toStringWithPrefix("?"))    // protocol version
+                .append(getAnonymizeIpParam().toStringWithPrefix("&"))  // anonymize IP
+                .append(getDataSourceParam().toStringWithPrefix("&"))   // data source
+                .append(getTrackingIdParam().toStringWithPrefix("&"))  // tracking id
+                .append(getClientIdParam().toStringWithPrefix("&"))  // client id
+                .append(getUserIdParam().toStringWithPrefix("&"))  // user id
+                .append(getCategoryParam().toStringWithPrefix("&"))   // event category
+                .append(getActionParam().toStringWithPrefix("&"))   // event action
+                .append(getLabelParam().toStringWithPrefix("&"))   // event label
+                .append(getValueParam().toStringWithPrefix("&"))   // event value
+                .append(getHitTypeParam().toStringWithPrefix("&"))    // event type
+                .append(getApplicationNameParam().toStringWithPrefix("&"))   // application name
+                .append(getApplicationVersionParam().toStringWithPrefix("&"))   // application version
+                .append(getApplicationIdParam().toStringWithPrefix("&"))  // application id
+                .append(getScreenNameParam().toStringWithPrefix("&"))   // screen name
+                .append(getCacheBusterParam().toStringWithPrefix("&"))    // cache buster
                 .toString();
 
         if (urlString.getBytes().length > 8000) {
@@ -563,7 +564,23 @@ public class GoogleAnalytics {
 
     public ArrayList<NameValuePair> buildPostParams() {
         postParameters.clear();
-        // TODO: populate postParams list with key/value pairs
+
+        postParameters.add(getProtocolVersionParam());
+        postParameters.add(getAnonymizeIpParam());
+        postParameters.add(getDataSourceParam());
+        postParameters.add(getTrackingIdParam());
+        postParameters.add(getClientIdParam());
+        postParameters.add(getUserIdParam());
+        postParameters.add(getCacheBusterParam());
+        postParameters.add(getActionParam());
+        postParameters.add(getLabelParam());
+        postParameters.add(getValueParam());
+        postParameters.add(getHitTypeParam());
+        postParameters.add(getApplicationNameParam());
+        postParameters.add(getApplicationVersionParam());
+        postParameters.add(getScreenNameParam());
+        postParameters.add(getUserIdParam());
+
         return postParameters;
     }
 
