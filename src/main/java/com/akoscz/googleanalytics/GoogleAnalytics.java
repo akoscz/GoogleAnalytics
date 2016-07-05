@@ -28,6 +28,7 @@ import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -500,19 +501,21 @@ public class GoogleAnalytics {
 
         try {
             HttpPost httpPost = new HttpPost(config.getEndpoint());
-            httpPost.setEntity(new UrlEncodedFormEntity(postParameters, "UTF-8"));
+            httpPost.setEntity(new UrlEncodedFormEntity(postParameters, ENCODING));
 
             @Cleanup CloseableHttpResponse httpResponse = httpClient.execute(httpPost);
             int responseCode = httpResponse.getStatusLine().getStatusCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                log.warning("Error posting to endpoint: '" + config.getEndpoint() + "'. Response code: '" + responseCode + "'\n" + httpPost.toString());
+                log.warning("Error posting to endpoint: '" + config.getEndpoint()
+                        + "'. Response code: '" + responseCode + "'\n"
+                        + httpPost.toString() + "\n" + postParameters);
             } else {
-                log.info("Successfully posted params to tracker: '" + postParameters + "'");
+                log.info("Successfully posted params to tracker: " + postParameters);
             }
 
             if (config.isDebug()) {
-                String responseBody = EntityUtils.toString(httpResponse.getEntity(), "UTF-8");
-                log.info(responseBody);
+                String responseBody = EntityUtils.toString(httpResponse.getEntity(), ENCODING);
+                log.info("response: " + responseBody);
             }
 
             EntityUtils.consumeQuietly(httpResponse.getEntity());
@@ -593,6 +596,8 @@ public class GoogleAnalytics {
         postParameters.add(getScreenNameParam());
         postParameters.add(getUserIdParam());
 
+        // remove empty parameters
+        postParameters.removeAll(Collections.singleton(GoogleAnalyticsParameter.EMPTY));
         return postParameters;
     }
 
