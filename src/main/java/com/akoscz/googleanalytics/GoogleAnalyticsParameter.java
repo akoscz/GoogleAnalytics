@@ -9,7 +9,12 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
 /**
+ * A NameValuePair immutable data class.
+ * To build one use:
+ *      GoogleAnalyticsParameter.of(String key, String value)
  *
+ * The toString() method returns a simple "name=value" String representation.
+ * The toStringWithPrefix(String prefix) convenience method prepends the prefix string to the result of toString().
  */
 @Value(staticConstructor="of")
 class GoogleAnalyticsParameter implements NameValuePair {
