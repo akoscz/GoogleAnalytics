@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.extern.java.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
-import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -29,6 +28,7 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -68,7 +68,7 @@ public class GoogleAnalytics {
     private final GoogleAnalyticsConfig config;
 
     @Getter(value = AccessLevel.NONE)
-    private final ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
+    private final ArrayList<GoogleAnalyticsParameter> postParameters = new ArrayList<GoogleAnalyticsParameter>();
 
     // *****************************
     // ********** GENERAL **********
@@ -436,7 +436,7 @@ public class GoogleAnalytics {
                 doGetNetworkOperation(url);
             }
         } else { // POST method
-            final ArrayList<NameValuePair> postParams = buildPostParams();
+            final List<GoogleAnalyticsParameter> postParams = buildPostParams();
 
             if (asynchronous) {
                 executor.submit(new Runnable() {
@@ -496,7 +496,7 @@ public class GoogleAnalytics {
         }
     }
 
-    private void doPostNetworkOperation(ArrayList<NameValuePair> postParameters) {
+    private void doPostNetworkOperation(List<GoogleAnalyticsParameter> postParameters) {
         log.info("executing on thread: " + Thread.currentThread().getName());
 
         try {
@@ -521,6 +521,7 @@ public class GoogleAnalytics {
             EntityUtils.consumeQuietly(httpResponse.getEntity());
         } catch (Exception e) {
             log.warning("Problem sending post request: " + e.toString());
+            e.printStackTrace();
         }
     }
 
@@ -577,7 +578,7 @@ public class GoogleAnalytics {
         return urlString;
     }
 
-    public ArrayList<NameValuePair> buildPostParams() {
+    public List<GoogleAnalyticsParameter> buildPostParams() {
         postParameters.clear();
 
         postParameters.add(getProtocolVersionParam());
@@ -598,6 +599,19 @@ public class GoogleAnalytics {
 
         // remove empty parameters
         postParameters.removeAll(Collections.singleton(GoogleAnalyticsParameter.EMPTY));
+
+        // count the bytes
+        int bytesCount = 0;
+        for (GoogleAnalyticsParameter postParam : postParameters) {
+            bytesCount += postParam.countBytes();
+        }
+        // account for the separator bytes at the end of each key=value pair, except the very last one
+        bytesCount += postParameters.size() - 1;
+
+        if (bytesCount > 8192) {
+            throw new RuntimeException("Post data parameters must not exceed 8192 bytes!");
+        }
+
         return postParameters;
     }
 

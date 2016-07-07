@@ -13,6 +13,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -37,6 +38,7 @@ public class GoogleAnalyticsTest {
     public void beforeTest() {
         GoogleAnalyticsConfig config = new GoogleAnalyticsConfig();
         config.setHttpMethod(GoogleAnalyticsConfig.HttpMethod.GET);
+        config.setUserAgent(String.valueOf(new UserAgent(applicationName, "testVersion")));
 
         tracker = GoogleAnalytics.buildTracker(trackingId, clientId, applicationName, config)
             .type(GoogleAnalytics.HitType.pageview);
@@ -59,7 +61,7 @@ public class GoogleAnalyticsTest {
         assertQueryParam(url, "an", applicationName);
 
         // ensure that required field appear in the post params
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("tid", trackingId)));
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cid", String.valueOf(clientId))));
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("an", applicationName)));
@@ -76,7 +78,7 @@ public class GoogleAnalyticsTest {
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "tid", testTrackingId);
 
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("tid", testTrackingId)));
     }
 
@@ -113,7 +115,7 @@ public class GoogleAnalyticsTest {
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "cid", String.valueOf(testClientId));
 
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cid", String.valueOf(testClientId))));
     }
 
@@ -136,7 +138,7 @@ public class GoogleAnalyticsTest {
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "uid", testUserId);
 
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("uid", testUserId)));
     }
 
@@ -178,7 +180,7 @@ public class GoogleAnalyticsTest {
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "an", "blah");
 
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("an", "blah")));
     }
 
@@ -219,7 +221,7 @@ public class GoogleAnalyticsTest {
         String url = tracker.build().buildUrlString();
         assertQueryParam(url, "t", String.valueOf(GoogleAnalytics.HitType.pageview));
 
-        ArrayList<NameValuePair> postParams = tracker.build().buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("t", String.valueOf(GoogleAnalytics.HitType.pageview))));
     }
 
@@ -251,7 +253,7 @@ public class GoogleAnalyticsTest {
         String url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "aip", "1");
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("aip", "1")));
 
         // ensure the setter works
@@ -291,7 +293,7 @@ public class GoogleAnalyticsTest {
         String url = googleAnalytics.buildUrlString();
         assertQueryParam(url, "ds", expectedDataSource);
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ds", expectedDataSource)));
     }
 
@@ -334,7 +336,7 @@ public class GoogleAnalyticsTest {
         String url = googleAnalytics.buildUrlString();
         assertQueryParamContainsKeyWithNonEmptyValue(url, "z");
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         // ensure that cache buster param never appears in the post params
         for (NameValuePair param : postParams) {
             if("z".equals(param.getName())) {
@@ -375,7 +377,7 @@ public class GoogleAnalyticsTest {
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "cd");
         assertQueryParam(googleAnalytics.buildUrlString(), "cd", testScreenName);
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("cd", testScreenName)));
     }
 
@@ -447,7 +449,7 @@ public class GoogleAnalyticsTest {
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ec");
         assertQueryParam(googleAnalytics.buildUrlString(), "ec", testCategory);
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ec", testCategory)));
     }
 
@@ -519,7 +521,7 @@ public class GoogleAnalyticsTest {
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ea");
         assertQueryParam(googleAnalytics.buildUrlString(), "ea", testAction);
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ea", testAction)));
     }
 
@@ -593,7 +595,7 @@ public class GoogleAnalyticsTest {
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "el");
         assertQueryParam(googleAnalytics.buildUrlString(), "el", testLabel);
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("el", testLabel)));
     }
 
@@ -645,7 +647,7 @@ public class GoogleAnalyticsTest {
         assertQueryParamContainsKeyWithNonEmptyValue(googleAnalytics.buildUrlString(), "ev");
         assertQueryParam(googleAnalytics.buildUrlString(), "ev", String.valueOf(expectedValue));
 
-        ArrayList<NameValuePair> postParams = googleAnalytics.buildPostParams();
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
         assertTrue(postParams.contains(GoogleAnalyticsParameter.of("ev", String.valueOf(expectedValue))));
     }
 
@@ -847,6 +849,57 @@ public class GoogleAnalyticsTest {
 
         googleAnalytics.setLogLevel(null);
         assertEquals(Level.SEVERE, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+    }
+
+    @Test
+    public void testPostParams_MaxLength() {
+        List<GoogleAnalyticsParameter> postParams = tracker.build().buildPostParams();
+
+        int bytesCount = 0;
+        for (NameValuePair postParam : postParams) {
+            bytesCount += ((GoogleAnalyticsParameter)postParam).countBytes();
+        }
+        // account for the separator bytes
+        bytesCount += postParams.size() - 1;
+
+        final int maxPostBodySize = 8192;
+        // calculate the number of bytes we need to reach the max limit.
+        // we subtract 4 for "&ds=" since that will added for us by the GoogleAnalyticsParameter.toString()
+        int fluffCount = maxPostBodySize - bytesCount - 4 /* &ds= */;
+        // create a string long enough to reach the max post body size
+        String fluff = StringUtils.repeat("f", fluffCount);
+
+        // add the fluff into the dataSource field "ds={fluff}", and get the updated post parameters
+        postParams = tracker.dataSource(fluff).build().buildPostParams();
+
+        GoogleAnalyticsParameter fluffParam = GoogleAnalyticsParameter.EMPTY;
+        bytesCount = 0;
+        // count the bytes again
+        for (NameValuePair postParam : postParams) {
+            bytesCount += ((GoogleAnalyticsParameter)postParam).countBytes();
+            if (postParam.getName().equals("ds"))
+                fluffParam = (GoogleAnalyticsParameter) postParam;
+        }
+        // account for the separator bytes
+        bytesCount += postParams.size() - 1;
+
+        assertEquals(fluffCount, fluffParam.countBytes() - 3 /* ds= */);
+        assertEquals(maxPostBodySize, bytesCount);
+
+        // now bump up the fluff by 1 and expect a failure
+        fluff = StringUtils.repeat("f", fluffCount + 1);
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("Post data parameters must not exceed 8192 bytes!");
+        tracker.dataSource(fluff).build().buildPostParams();
+    }
+
+    @Test
+    public void testNetworkToLocanhost() {
+        // TODO: inject a mock httpClient
+        // GoogleAnalyticsConfig config = tracker.build().getConfig();
+        // config.setEndpoint("http://localhost:8080");
+        // config.setHttpMethod(GoogleAnalyticsConfig.HttpMethod.POST);
+        // tracker.config(config).build().send(false);
     }
 
     /***********************/

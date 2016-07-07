@@ -33,6 +33,16 @@ class GoogleAnalyticsParameter implements NameValuePair {
         return name + "=" + URLEncoder.encode(value, ENCODING);
     }
 
+
+    /* package */ int countBytes() {
+        String str = toString();
+        int bytesCount = 0;
+        if (StringUtils.isNotEmpty(str)) {
+            bytesCount = str.getBytes().length;
+        }
+        return bytesCount;
+    }
+
     /**
      * Return the string value of this GoogleAnalyticsPrameter and prepend the 'prefix' string to the string value.
      * If the prexix is null or empty, the prefix is ignored and toString() is returned.
