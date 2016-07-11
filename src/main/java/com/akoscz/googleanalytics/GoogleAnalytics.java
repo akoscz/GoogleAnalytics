@@ -289,7 +289,7 @@ public class GoogleAnalytics extends BaseAnalytics {
     // *****************************
     // *****************************
 
-    protected void validateRequiredParams(GoogleAnalytics.HitType type) {
+    protected void validateRequiredParams() {
         if (clientId == null)
             throw new IllegalArgumentException("'clientId' cannot be null!");
 
@@ -320,7 +320,7 @@ public class GoogleAnalytics extends BaseAnalytics {
      * @return The URL string containing the query params of all available parameters.
      */
     public String buildUrlString() {
-        validateRequiredParams(type);
+        validateRequiredParams();
 
         String urlString = new NonNullOrEmptyStringBuilder()
                 .append(config.getEndpoint())
@@ -356,7 +356,7 @@ public class GoogleAnalytics extends BaseAnalytics {
     public List<GoogleAnalyticsParameter> buildPostParams() {
         postParameters.clear();
 
-        validateRequiredParams(type);
+        validateRequiredParams();
 
         postParameters.add(getProtocolVersionParam());
         postParameters.add(getAnonymizeIpParam());

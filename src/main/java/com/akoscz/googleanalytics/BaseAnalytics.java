@@ -35,7 +35,7 @@ import java.util.logging.Level;
  *     abstract String buildUrlString();
  *     abstract List<GoogleAnalyticsParameter> buildPostParams();
  *     abstract GoogleAnalyticsConfig getConfig();
- *     abstract void validateRequiredParams(GoogleAnalytics.HitType type);
+ *     abstract void validateRequiredParams();
  */
 @Log
 public abstract class BaseAnalytics {
@@ -275,5 +275,5 @@ public abstract class BaseAnalytics {
     abstract String buildUrlString();
     abstract List<GoogleAnalyticsParameter> buildPostParams();
     abstract GoogleAnalyticsConfig getConfig();
-    abstract void validateRequiredParams(GoogleAnalytics.HitType type);
+    abstract void validateRequiredParams();
 }
