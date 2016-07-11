@@ -1,5 +1,6 @@
 package com.akoscz.googleanalytics;
 
+import com.akoscz.googleanalytics.util.UserAgent;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.junit.Before;
@@ -11,7 +12,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -841,14 +841,27 @@ public class GoogleAnalyticsTest {
         googleAnalytics.setLogLevel(expectedLevel);
 
         // ensure that the log level is what we expect
-        assertEquals(expectedLevel, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+        assertEquals(expectedLevel, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
 
         googleAnalytics.setDebug(true);
         // ensure the enabling debug changes the log level to ALL
-        assertEquals(Level.ALL, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+        assertEquals(Level.ALL, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
 
         googleAnalytics.setLogLevel(null);
-        assertEquals(Level.SEVERE, Logger.getLogger(GoogleAnalytics.class.getName()).getLevel());
+        assertEquals(Level.SEVERE, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
+
+        expectedLevel = Level.WARNING;
+        tracker.build().setLogLevel(expectedLevel);
+
+        // ensure that the log level is what we expect
+        assertEquals(expectedLevel, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
+
+        tracker.build().setDebug(true);
+        // ensure the enabling debug changes the log level to ALL
+        assertEquals(Level.ALL, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
+
+        tracker.build().setLogLevel(null);
+        assertEquals(Level.SEVERE, Logger.getLogger(BaseAnalytics.class.getName()).getLevel());
     }
 
     @Test
@@ -899,7 +912,10 @@ public class GoogleAnalyticsTest {
         // GoogleAnalyticsConfig config = tracker.build().getConfig();
         // config.setEndpoint("http://localhost:8080");
         // config.setHttpMethod(GoogleAnalyticsConfig.HttpMethod.POST);
-        // tracker.config(config).build().send(false);
+        // GoogleAnalytics googleAnalytics = tracker.config(config).build();
+        // googleAnalytics.setDebug(true);
+        // googleAnalytics.setLogLevel(Level.ALL);
+        // tracker.build().send(false);
     }
 
     /***********************/

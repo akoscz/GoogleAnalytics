@@ -1,8 +1,26 @@
+buildscript {
+    repositories{
+        maven { url "https://plugins.gradle.org/m2/" }
+        jcenter()
+    }
+    dependencies {
+        classpath "net.ltgt.gradle:gradle-apt-plugin:0.4"
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://plugins.gradle.org/m2/" }
+    jcenter()
+}
+
 group 'GoogleAnalytics'
 version '1.0-SNAPSHOT'
 
+apply plugin: 'net.ltgt.apt'
 apply plugin: 'java'
 apply plugin: 'jacoco'
+apply plugin: 'idea'
 
 sourceCompatibility = 1.6
 
@@ -11,12 +29,26 @@ repositories {
 }
 
 dependencies {
-    compile 'org.projectlombok:lombok:1.16.8'
+    compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
     compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
-    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.3'
+    compileOnly group: 'org.projectlombok', name: 'lombok', version: '1.16.8'
+    apt     group: 'org.projectlombok', name: 'lombok', version: '1.16.8'
+    compile group: 'com.google.dagger', name: 'dagger', version: '2.4'
+    apt     group: 'com.google.dagger', name: 'dagger-compiler', version: '2.4'
+
     testCompile group: 'junit', name: 'junit', version: '4.11'
     testCompile "org.mockito:mockito-core:1.+"
+}
+
+jar {
+    manifest {
+        attributes "Implementation-Title": baseName
+        attributes "Implementation-Version": version
+    }
+    // include Dagger and JSR 330: Dependency Injection for Java classes in the jar
+    // until I figure out how to deal with transitive dependencies
+    from { configurations.runtime.filter{ it.name.startsWith("javax.inject") || it.name.startsWith("dagger")}.collect { zipTree(it) } }
 }
 
 jacoco {

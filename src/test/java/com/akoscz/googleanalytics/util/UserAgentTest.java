@@ -1,4 +1,4 @@
-package com.akoscz.googleanalytics;
+package com.akoscz.googleanalytics.util;
 
 import org.junit.Rule;
 import org.junit.Test;

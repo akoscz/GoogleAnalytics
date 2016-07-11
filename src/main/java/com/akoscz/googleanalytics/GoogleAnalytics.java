@@ -1,38 +1,12 @@
 package com.akoscz.googleanalytics;
 
 import com.akoscz.googleanalytics.util.NonNullOrEmptyStringBuilder;
-import lombok.AccessLevel;
 import lombok.Builder;
-import lombok.Cleanup;
 import lombok.Getter;
-import lombok.extern.java.Log;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.util.EntityUtils;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.ProtocolException;
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 /**
@@ -40,35 +14,23 @@ import java.util.regex.Pattern;
  * It provides support for a subset of the Measurement Protocol parameters.
  * See: https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
  */
-@Log
-@Builder(builderClassName = "Tracker", builderMethodName = "requiredParamsBuilder")
-public class GoogleAnalytics {
+@Builder(builderClassName = "Tracker", builderMethodName = "trackerBuilder")
+public class GoogleAnalytics extends BaseAnalytics {
+
     public enum HitType {
         pageview,
         screenview,
         event,
-//    transaction,
-//    item,
-//    social,
-//    exception,
-//    timing;
+        // transaction,
+        // item,
+        // social,
+        // exception,
+        // timing;
     }
 
-    private static final int PROTOCOL_VERSION = 1;
-    private static final String ENCODING = "UTF-8";
-    private static final Level DEFAULT_LOG_LEVEL = Level.SEVERE;
-
-    private final ThreadPoolExecutor executor;
-    private final CloseableHttpClient httpClient;
-
     @Getter
-    private static Tracker globalTracker;
+    private GoogleAnalyticsConfig config;
 
-    @Getter
-    private final GoogleAnalyticsConfig config;
-
-    @Getter(value = AccessLevel.NONE)
-    private final ArrayList<GoogleAnalyticsParameter> postParameters = new ArrayList<GoogleAnalyticsParameter>();
 
     // *****************************
     // ********** GENERAL **********
@@ -97,9 +59,6 @@ public class GoogleAnalytics {
     private String trackingId;
     private static final String TRACKING_ID_KEY = "tid";
     private GoogleAnalyticsParameter getTrackingIdParam() {
-        if (trackingId == null || trackingId.isEmpty()) throw new IllegalArgumentException("'trackingId' cannot be null or empty!");
-        if (!Pattern.matches("[U][A]-[0-9]+-[0-9]+", trackingId)) throw new IllegalArgumentException("Malformed trackingId: '" + trackingId + "'.  Expected: 'UA-[0-9]+-[0-9]+'");
-
         return GoogleAnalyticsParameter.of(TRACKING_ID_KEY, String.valueOf(trackingId));
     }
 
@@ -165,7 +124,6 @@ public class GoogleAnalytics {
     private UUID clientId;
     private static final String CLIENT_ID_KEY = "cid";
     private GoogleAnalyticsParameter getClientIdParam() {
-        if (clientId == null) throw new IllegalArgumentException("'clientId' cannot be null!");
         return GoogleAnalyticsParameter.of(CLIENT_ID_KEY, clientId.toString());
     }
 
@@ -198,7 +156,6 @@ public class GoogleAnalytics {
     private HitType type;
     private static final String HIT_TYPE_KEY = "t";
     private GoogleAnalyticsParameter getHitTypeParam() {
-        if (type == null) throw new IllegalArgumentException("'type' cannot be null!");
         return GoogleAnalyticsParameter.of(HIT_TYPE_KEY, type.name());
     }
 
@@ -218,13 +175,11 @@ public class GoogleAnalytics {
     private String screenName;
     private static final String SCREEN_NAME_KEY = "cd";
     private GoogleAnalyticsParameter getScreenNameParam() {
-        if (type == HitType.screenview && (screenName == null || screenName.isEmpty())) {
-            throw new IllegalArgumentException("'screenName' cannot be null or empty when HitType.screenview is specified!");
-        }
         if (screenName == null || screenName.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (screenName.getBytes().length > 2048) throw new RuntimeException("'screenName' cannot exceed 2048 bytes!");
         return GoogleAnalyticsParameter.of(SCREEN_NAME_KEY, screenName);
     }
+
     // *****************************
     // **** APPLICATION TRACKING ***
     // *****************************
@@ -238,7 +193,6 @@ public class GoogleAnalytics {
     private String applicationName;
     private static final String APPLICATION_NAME_KEY = "an";
     private GoogleAnalyticsParameter getApplicationNameParam() {
-        if (applicationName == null || applicationName.isEmpty()) throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
         if (applicationName.getBytes().length > 100) throw new RuntimeException("'applicationName' cannot exceed 100 bytes!");
         return GoogleAnalyticsParameter.of(APPLICATION_NAME_KEY, applicationName);
     }
@@ -284,9 +238,6 @@ public class GoogleAnalytics {
     private String category;
     private static final String CATEGORY_KEY = "ec";
     private GoogleAnalyticsParameter getCategoryParam() {
-        if (type == HitType.event && (category == null || category.isEmpty())) {
-            throw new IllegalArgumentException("event 'category' cannot be null or empty when HitType.event is specified!");
-        }
         if (category == null || category.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (category.getBytes().length > 150) throw new RuntimeException("'category' cannot exceed 150 bytes!");
         return GoogleAnalyticsParameter.of(CATEGORY_KEY, category);
@@ -301,9 +252,6 @@ public class GoogleAnalytics {
     private String action;
     private static final String ACTION_KEY = "ea";
     private GoogleAnalyticsParameter getActionParam() {
-        if (type == HitType.event && (action == null || action.isEmpty())) {
-            throw new IllegalArgumentException("event 'action' cannot be null or empty when HitType.event is specified!");
-        }
         if (action == null || action.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
         if (action.getBytes().length > 500) throw new RuntimeException("event 'action' cannot exceed 500 bytes!");
         return GoogleAnalyticsParameter.of(ACTION_KEY, action);
@@ -341,215 +289,38 @@ public class GoogleAnalytics {
     // *****************************
     // *****************************
 
-    /**
-     * Build a Tracker instance with default config values by which you can compose your GoogleAnalytics tracking request.
-     * @param trackingId Required Valid Google Analytics Tracking Id.
-     * @param clientId Required Valid Client Id UUID.
-     * @param applicationName Required non-null non-empty Application Name.
-     * @return A Google Analytics Tracker instance.
-     */
-    public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName) {
-        return GoogleAnalytics.buildTracker(trackingId, clientId, applicationName, null);
+    protected void validateRequiredParams(GoogleAnalytics.HitType type) {
+        if (clientId == null)
+            throw new IllegalArgumentException("'clientId' cannot be null!");
+
+        if (applicationName == null || applicationName.isEmpty())
+            throw new IllegalArgumentException("'applicationName' cannot be null or empty!");
+
+        if (trackingId == null || trackingId.isEmpty())
+            throw new IllegalArgumentException("'trackingId' cannot be null or empty!");
+
+        if (!Pattern.matches("[U][A]-[0-9]+-[0-9]+", trackingId))
+            throw new IllegalArgumentException("Malformed trackingId: '" + trackingId + "'.  Expected: 'UA-[0-9]+-[0-9]+'");
+
+        if (type == null)
+            throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
+
+        if (type == HitType.event && (category == null || category.isEmpty()))
+            throw new IllegalArgumentException("event 'category' cannot be null or empty when HitType.event is specified!");
+
+        if (type == HitType.event && (action == null || action.isEmpty()))
+            throw new IllegalArgumentException("event 'action' cannot be null or empty when HitType.event is specified!");
+
+        if (type == HitType.screenview && (screenName == null || screenName.isEmpty()))
+            throw new IllegalArgumentException("'screenName' cannot be null or empty when HitType.screenview is specified!");
     }
 
     /**
-     * Build a Tracker instance by which you can compose your GoogleAnalytics tracking request.
-     * @param trackingId Required Valid Google Analytics Tracking Id.
-     * @param clientId Required Valid Client Id UUID.
-     * @param applicationName Required non-null non-empty Application Name.
-     * @param config The configuration parameters for the tracker.  If null, default config values will be used.
-     * @return A Google Analytics Tracker instance.
-     */
-    public static Tracker buildTracker(String trackingId, UUID clientId, String applicationName, GoogleAnalyticsConfig config) {
-        if (config == null) config = new GoogleAnalyticsConfig();
-
-        Tracker tracker = requiredParamsBuilder()
-                .config(config)
-                .executor(GoogleAnalyticsThreadFactory.createExecutor(config))
-                .httpClient(createHttpClient(config))
-                .protocolVersion(PROTOCOL_VERSION)
-                .trackingId(trackingId)
-                .clientId(clientId)
-                .applicationName(applicationName);
-
-        // set the global tracker instance
-        tracker.build().globalTracker = tracker;
-
-        return tracker;
-    }
-
-    /**
-     * Enable debug mode.
-     *
-     * By enabling debug mode, all network traffic will go to the debug endpoint.
-     * Logging level will automatically be set to Level.ALL
-     * @param enableDebug True to enable debug mode, False otherwise.
-     */
-    public void setDebug(boolean enableDebug) {
-        config.setDebug(enableDebug);
-        globalTracker.config(config);
-        log.setLevel(Level.ALL);
-    }
-
-    /**
-     * Set the Log Level for logging
-     * @param logLevel A java.util.logging.LogLevel value.
-     *                 Passing in null will reset the log level to the default, Level.SEVERE
-     */
-    public void setLogLevel(Level logLevel) {
-        if (logLevel == null) {
-            // reset to default
-            logLevel = DEFAULT_LOG_LEVEL;
-        }
-        log.setLevel(logLevel);
-    }
-
-    /**
-     * Send the parameters over the network to Google Analytics.
-     * Note that this method will clear all the non-required parameters irregardless of success or failure
-     * of the network request.
-     * This method defaults to performing the network operation asynchronously.
-     */
-    public void send() {
-        // default to send asynchronously
-        send(true);
-    }
-
-    /**
-     * Send the parameters over the network to Google Analytics.
-     * Note that this method will clear all the non-required parameters irregardless of success or failure
-     * of the network request.
-     * @param asynchronous True to perform the network operation asynchronously, False otherwise.
-     */
-    public void send(boolean asynchronous) {
-
-        if (config.isHttpMethodGet()) {
-            final String url = buildUrlString();
-            if (asynchronous) {
-                executor.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        doGetNetworkOperation(url);
-                    }
-                });
-            } else {
-                doGetNetworkOperation(url);
-            }
-        } else { // POST method
-            final List<GoogleAnalyticsParameter> postParams = buildPostParams();
-
-            if (asynchronous) {
-                executor.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        doPostNetworkOperation(postParams);
-                    }
-                });
-            } else {
-                doPostNetworkOperation(postParams);
-            }
-
-        }
-
-        // clear all non-required fields
-        resetTracker();
-    }
-
-    protected void doGetNetworkOperation(String url) {
-        log.info("executing on thread: " + Thread.currentThread().getName());
-
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) new URL(url).openConnection();
-            connection.setRequestMethod("GET");
-            if (StringUtils.isNotEmpty(config.getUserAgent())) {
-                connection.setRequestProperty("User-Agent", config.getUserAgent());
-            }
-
-            final int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                log.warning("Error requesting url: '" + url + "'. Response code: " + responseCode);
-            } else {
-                log.info("Successfully hit tracker: '" + url + "'");
-            }
-
-            if (config.isDebug()) {
-                StringBuilder content = new StringBuilder();
-                @Cleanup BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
-                String line;
-                // read from the urlconnection via the bufferedreader
-                while ((line = bufferedReader.readLine()) != null) {
-                    content.append(line + "\n");
-                }
-                log.info(content.toString());
-            }
-
-        } catch (ProtocolException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
-    }
-
-    private void doPostNetworkOperation(List<GoogleAnalyticsParameter> postParameters) {
-        log.info("executing on thread: " + Thread.currentThread().getName());
-
-        try {
-            HttpPost httpPost = new HttpPost(config.getEndpoint());
-            httpPost.setEntity(new UrlEncodedFormEntity(postParameters, ENCODING));
-
-            @Cleanup CloseableHttpResponse httpResponse = httpClient.execute(httpPost);
-            int responseCode = httpResponse.getStatusLine().getStatusCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                log.warning("Error posting to endpoint: '" + config.getEndpoint()
-                        + "'. Response code: '" + responseCode + "'\n"
-                        + httpPost.toString() + "\n" + postParameters);
-            } else {
-                log.info("Successfully posted params to tracker: " + postParameters);
-            }
-
-            if (config.isDebug()) {
-                String responseBody = EntityUtils.toString(httpResponse.getEntity(), ENCODING);
-                log.info("response: " + responseBody);
-            }
-
-            EntityUtils.consumeQuietly(httpResponse.getEntity());
-        } catch (Exception e) {
-            log.warning("Problem sending post request: " + e.toString());
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Clear all non-required fields
-     */
-    private void resetTracker() {
-        globalTracker
-            .userId(null)
-            .category(null)
-            .action(null)
-            .label(null)
-            .value(null)
-            .type(null)
-            .applicationVersion(null)
-            .applicationId(null)
-            .screenName(null)
-            .dataSource(null)
-            .anonymizeIP(null)
-            .cacheBuster(null);
-    }
-
-    /**
-     * Build the URL that will be used for the network request.
+     * Build the URL that will be used for the GET network request.
      * @return The URL string containing the query params of all available parameters.
      */
     public String buildUrlString() {
-        if (type == null) throw new IllegalArgumentException("Missing HitType. 'type' cannot be null!");
+        validateRequiredParams(type);
 
         String urlString = new NonNullOrEmptyStringBuilder()
                 .append(config.getEndpoint())
@@ -578,8 +349,14 @@ public class GoogleAnalytics {
         return urlString;
     }
 
+    /**
+     * Build the list of parameters that will be used for the POST request.
+     * @return The list of non empty GoogleAnalyticsParameter's
+     */
     public List<GoogleAnalyticsParameter> buildPostParams() {
         postParameters.clear();
+
+        validateRequiredParams(type);
 
         postParameters.add(getProtocolVersionParam());
         postParameters.add(getAnonymizeIpParam());
@@ -613,30 +390,5 @@ public class GoogleAnalytics {
         }
 
         return postParameters;
-    }
-
-    private static CloseableHttpClient createHttpClient(GoogleAnalyticsConfig config) {
-        PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
-        connManager.setDefaultMaxPerRoute(config.getMaxThreads());
-        connManager.setMaxTotal(config.getMaxThreads());
-        HttpClientBuilder builder = HttpClients.custom().setConnectionManager(connManager);
-
-        if (StringUtils.isNotEmpty(config.getUserAgent())) {
-            builder.setUserAgent(config.getUserAgent());
-        }
-
-        if (StringUtils.isNotEmpty(config.getProxyHost())) {
-            builder.setProxy(new HttpHost(config.getProxyHost(), config.getProxyPort()));
-
-            if (StringUtils.isNotEmpty(config.getProxyUserName())) {
-                BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-                credentialsProvider.setCredentials(
-                        new AuthScope(config.getProxyHost(), config.getProxyPort()),
-                        new UsernamePasswordCredentials(config.getProxyUserName(), config.getProxyPassword()));
-                builder.setDefaultCredentialsProvider(credentialsProvider);
-            }
-        }
-
-        return builder.build();
     }
 }

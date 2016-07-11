@@ -1,4 +1,4 @@
-package com.akoscz.googleanalytics;
+package com.akoscz.googleanalytics.util;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
