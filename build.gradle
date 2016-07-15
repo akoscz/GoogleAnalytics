@@ -14,13 +14,14 @@ repositories {
     jcenter()
 }
 
-group 'GoogleAnalytics'
+group GROUP_ID
 version '1.0-SNAPSHOT'
 
 apply plugin: 'net.ltgt.apt'
 apply plugin: 'java'
 apply plugin: 'jacoco'
 apply plugin: 'idea'
+apply from: 'maven-push.gradle'
 
 sourceCompatibility = 1.7
 
@@ -29,7 +30,6 @@ repositories {
 }
 
 dependencies {
-    compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
     compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
     compileOnly group: 'org.projectlombok', name: 'lombok', version: '1.16.8'
@@ -46,9 +46,6 @@ jar {
         attributes "Implementation-Title": baseName
         attributes "Implementation-Version": version
     }
-    // include Dagger and JSR 330: Dependency Injection for Java classes in the jar
-    // until I figure out how to deal with transitive dependencies
-    from { configurations.runtime.filter{ it.name.startsWith("javax.inject") || it.name.startsWith("dagger")}.collect { zipTree(it) } }
 }
 
 jacoco {
