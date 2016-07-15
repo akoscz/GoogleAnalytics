@@ -19,13 +19,11 @@ import javax.inject.Singleton;
 public class HttpClientModule {
 
     @Provides
-    @Singleton
     public PoolingHttpClientConnectionManager providesConnectionManager() {
         return new PoolingHttpClientConnectionManager();
     }
 
     @Provides
-    @Singleton
     public HttpClientBuilder providesHttpClientBuilder(PoolingHttpClientConnectionManager connectionManager, GoogleAnalyticsConfig config) {
         connectionManager.setDefaultMaxPerRoute(config.getMaxThreads());
         connectionManager.setMaxTotal(config.getMaxThreads());
@@ -34,7 +32,6 @@ public class HttpClientModule {
     }
 
     @Provides
-    @Singleton
     public CloseableHttpClient providesHttpClient(HttpClientBuilder builder, GoogleAnalyticsConfig config) {
         if (StringUtils.isNotEmpty(config.getUserAgent())) {
             builder.setUserAgent(config.getUserAgent());

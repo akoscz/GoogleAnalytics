@@ -50,7 +50,7 @@ public abstract class BaseAnalytics {
     protected static GoogleAnalytics.Tracker globalTracker;
 
     @Inject
-    ThreadPoolExecutor executor;
+    Lazy<ThreadPoolExecutor> executor;
     @Inject
     Lazy<CloseableHttpClient> httpClient;
 
@@ -152,7 +152,7 @@ public abstract class BaseAnalytics {
         if (config.isHttpMethodGet()) {
             final String url = buildUrlString();
             if (asynchronous) {
-                executor.submit(new Runnable() {
+                executor.get().submit(new Runnable() {
                     @Override
                     public void run() {
                         doGetNetworkOperation(url);
@@ -165,7 +165,7 @@ public abstract class BaseAnalytics {
             final List<GoogleAnalyticsParameter> postParams = buildPostParams();
 
             if (asynchronous) {
-                executor.submit(new Runnable() {
+                executor.get().submit(new Runnable() {
                     @Override
                     public void run() {
                         doPostNetworkOperation(postParams);

@@ -16,7 +16,6 @@ public class ConfigModule {
     }
 
     @Provides
-    @Singleton
     GoogleAnalyticsConfig providesConfig() {
         return config;
     }

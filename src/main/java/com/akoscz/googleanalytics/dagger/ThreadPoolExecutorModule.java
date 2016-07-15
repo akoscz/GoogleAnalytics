@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 public class ThreadPoolExecutorModule {
 
     @Provides
-    @Singleton
     ThreadPoolExecutor providesExecutor(GoogleAnalyticsThreadFactory threadFactory, LinkedBlockingDeque<Runnable> queue,
                                         RejectedExecutionHandler rejectedExecutionHandler, GoogleAnalyticsConfig config) {
         return new ThreadPoolExecutor(
@@ -29,13 +28,11 @@ public class ThreadPoolExecutorModule {
     }
 
     @Provides
-    @Singleton
     GoogleAnalyticsThreadFactory providesThreadFactory(GoogleAnalyticsConfig config) {
         return new GoogleAnalyticsThreadFactory(config.getThreadNameFormat());
     }
 
     @Provides
-    @Singleton
     LinkedBlockingDeque<Runnable> providesQueue(GoogleAnalyticsConfig config) {
         return new LinkedBlockingDeque<Runnable>(config.getQueueSize());
     }
