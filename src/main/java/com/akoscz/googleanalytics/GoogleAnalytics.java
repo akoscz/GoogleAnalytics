@@ -24,7 +24,7 @@ public class GoogleAnalytics extends BaseAnalytics {
         // transaction,
         // item,
         // social,
-        // exception,
+        exception,
         // timing;
     }
 
@@ -286,10 +286,45 @@ public class GoogleAnalytics extends BaseAnalytics {
     }
 
     // *****************************
+    // ******** EXCEPTIONS *********
+    // *****************************
+
+    /**
+     * Optional.
+     *
+     * Specifies the description of an exception.
+     */
+    @Getter
+    private String exceptionDescription;
+    private static final String EX_DESCRIPTION_KEY = "exd";
+    private GoogleAnalyticsParameter getExceptionDescriptionParam() {
+        if (type != HitType.exception || exceptionDescription == null || exceptionDescription.isEmpty()) return GoogleAnalyticsParameter.EMPTY;
+        if (exceptionDescription.getBytes().length > 150) throw new RuntimeException("event 'exceptionDescription' cannot exceed 150 bytes!");
+        return GoogleAnalyticsParameter.of(EX_DESCRIPTION_KEY, exceptionDescription);
+    }
+
+    /**
+     * Optional.
+     *
+     * Specifies whether the exception was fatal.  Default is TRUE.
+     */
+    @Getter
+    private Boolean isExceptionFatal = true;
+    private static final String EX_FATAL_KEY = "exf";
+    private GoogleAnalyticsParameter getIsExceptionFatalParam() {
+        if (type != HitType.exception || isExceptionFatal == null) return GoogleAnalyticsParameter.EMPTY;
+        return GoogleAnalyticsParameter.of(EX_FATAL_KEY, isExceptionFatal ? "1" : "0");
+    }
+
+    // *****************************
     // *****************************
     // *****************************
 
-    protected void validateRequiredParams() {
+    /**
+     * Ensure that the Measurement Protocol required parameters are valid and rules are enforced.
+     * https://developers.google.com/analytics/devguides/collection/protocol/v1/reference#required
+     */
+    /* package */ void validateRequiredParams() {
         if (clientId == null)
             throw new IllegalArgumentException("'clientId' cannot be null!");
 
@@ -319,7 +354,7 @@ public class GoogleAnalytics extends BaseAnalytics {
      * Build the URL that will be used for the GET network request.
      * @return The URL string containing the query params of all available parameters.
      */
-    public String buildUrlString() {
+    /* package */ String buildUrlString() {
         validateRequiredParams();
 
         String urlString = new NonNullOrEmptyStringBuilder()
@@ -340,6 +375,8 @@ public class GoogleAnalytics extends BaseAnalytics {
                 .append(getApplicationIdParam().toStringWithPrefix("&"))  // application id
                 .append(getScreenNameParam().toStringWithPrefix("&"))   // screen name
                 .append(getCacheBusterParam().toStringWithPrefix("&"))    // cache buster
+                .append(getExceptionDescriptionParam().toStringWithPrefix("&")) // exception description
+                .append(getIsExceptionFatalParam().toStringWithPrefix("&")) // exception fatal flag
                 .toString();
 
         if (urlString.getBytes().length > 8000) {
@@ -353,7 +390,7 @@ public class GoogleAnalytics extends BaseAnalytics {
      * Build the list of parameters that will be used for the POST request.
      * @return The list of non empty GoogleAnalyticsParameter's
      */
-    public List<GoogleAnalyticsParameter> buildPostParams() {
+    /* package */ List<GoogleAnalyticsParameter> buildPostParams() {
         postParameters.clear();
 
         validateRequiredParams();
@@ -373,6 +410,8 @@ public class GoogleAnalytics extends BaseAnalytics {
         postParameters.add(getApplicationVersionParam());
         postParameters.add(getScreenNameParam());
         postParameters.add(getUserIdParam());
+        postParameters.add(getExceptionDescriptionParam());
+        postParameters.add(getIsExceptionFatalParam());
 
         // remove empty parameters
         postParameters.removeAll(Collections.singleton(GoogleAnalyticsParameter.EMPTY));
@@ -391,4 +430,26 @@ public class GoogleAnalytics extends BaseAnalytics {
 
         return postParameters;
     }
+
+    /**
+     * Clear all non-required fields and reset default values where applicable
+     */
+    /* package */ void resetTracker() {
+        globalTracker
+                .userId(null)
+                .category(null)
+                .action(null)
+                .label(null)
+                .value(null)
+                .type(null)
+                .applicationVersion(null)
+                .applicationId(null)
+                .screenName(null)
+                .dataSource(null)
+                .anonymizeIP(null)
+                .cacheBuster(null)
+                .exceptionDescription(null)
+                .isExceptionFatal(true);
+    }
+
 }

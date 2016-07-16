@@ -90,7 +90,8 @@ public abstract class BaseAnalytics {
                 .protocolVersion(PROTOCOL_VERSION)
                 .trackingId(trackingId)
                 .clientId(clientId)
-                .applicationName(applicationName);
+                .applicationName(applicationName)
+                .isExceptionFatal(true); // initialize default value
 
         graph = DaggerBaseComponent.builder()
                 .configModule(new ConfigModule(config))
@@ -253,27 +254,9 @@ public abstract class BaseAnalytics {
         }
     }
 
-    /**
-     * Clear all non-required fields
-     */
-    private void resetTracker() {
-        globalTracker
-                .userId(null)
-                .category(null)
-                .action(null)
-                .label(null)
-                .value(null)
-                .type(null)
-                .applicationVersion(null)
-                .applicationId(null)
-                .screenName(null)
-                .dataSource(null)
-                .anonymizeIP(null)
-                .cacheBuster(null);
-    }
-
     abstract String buildUrlString();
     abstract List<GoogleAnalyticsParameter> buildPostParams();
     abstract GoogleAnalyticsConfig getConfig();
     abstract void validateRequiredParams();
+    abstract void resetTracker();
 }

@@ -741,6 +741,89 @@ public class GoogleAnalyticsTest {
     }
 
     @Test
+    public void testExceptionDescription_NullAndEmpty() throws UnsupportedEncodingException, MalformedURLException {
+        GoogleAnalytics googleAnalytics = tracker.type(GoogleAnalytics.HitType.exception).build();
+        // ensure that its initialized to null
+        assertNull(googleAnalytics.getExceptionDescription());
+        // ensure we start off with absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "exd");
+
+        // set a value and verify it
+        googleAnalytics = tracker.exceptionDescription("BlahException").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "exd", "BlahException");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.exceptionDescription("").build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "exd");
+
+        // set a value and verify it
+        googleAnalytics = tracker.exceptionDescription("Blah2Exception").build();
+        assertQueryParam(googleAnalytics.buildUrlString(), "exd", "Blah2Exception");
+
+        // clear out the value with an empty string
+        googleAnalytics = tracker.exceptionDescription(null).build();
+        // verify absent query param
+        assertQueryParamAbsent(googleAnalytics.buildUrlString(), "exd");
+    }
+
+    @Test
+    public void testExceptionDescription_MaxLength() throws UnsupportedEncodingException, MalformedURLException {
+        int maxLength = 150;
+        String testExDescription = StringUtils.repeat("e", maxLength + 1);
+
+        GoogleAnalytics googleAnalytics = tracker.type(GoogleAnalytics.HitType.exception).exceptionDescription(testExDescription).build();
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("'exceptionDescription' cannot exceed 150 bytes!");
+        googleAnalytics.buildUrlString();
+    }
+
+    @Test
+    public void testIsExceptionFatal() throws UnsupportedEncodingException, MalformedURLException {
+        // ensure the default is true
+        GoogleAnalytics googleAnalytics = tracker.type(GoogleAnalytics.HitType.exception).build();
+        assertTrue("'isFatalException' default should have been 'true'", googleAnalytics.getIsExceptionFatal());
+
+        // ensure url is built with proper query param and value
+        String url = googleAnalytics.buildUrlString();
+        assertQueryParam(url, "exf", "1");
+
+        List<GoogleAnalyticsParameter> postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("exf", "1")));
+
+        // ensure the setter works
+        tracker.isExceptionFatal(false);
+        googleAnalytics = tracker.build();
+        assertFalse(googleAnalytics.getIsExceptionFatal());
+
+        // ensure url is built with proper query param and value
+        url = googleAnalytics.buildUrlString();
+        assertQueryParam(url, "exf", "0");
+
+        postParams = googleAnalytics.buildPostParams();
+        assertTrue(postParams.contains(GoogleAnalyticsParameter.of("exf", "0")));
+
+        googleAnalytics.resetTracker();
+        googleAnalytics = tracker.build();
+        // ensure the default is returned to true
+        assertTrue("'isFatalException' default should have been 'true'", googleAnalytics.getIsExceptionFatal());
+    }
+
+    @Test
+    public void testIsExceptionFatal_Null() {
+        // ensure the setter works
+        tracker.anonymizeIP(null);
+        GoogleAnalytics googleAnalytics = tracker.build();
+
+        assertNull(googleAnalytics.getAnonymizeIP());
+
+        // ensure url is built with proper query param and value
+        String url = googleAnalytics.buildUrlString();
+        assertTrue("url should not contain 'aip' query parameter", !url.contains("&aip"));
+    }
+
+    @Test
     public void testSend_resetTracker() {
         GoogleAnalytics googleAnalytics = tracker
                     .userId("testUserId")
@@ -755,6 +838,8 @@ public class GoogleAnalyticsTest {
                     .dataSource("testDataSource")
                     .anonymizeIP(true)
                     .cacheBuster(true)
+                    .exceptionDescription("Test Exception Description")
+                    .isExceptionFatal(false)
                     .build();
 
         GoogleAnalytics spyGoogleAnalytics = spy(googleAnalytics);
@@ -778,6 +863,8 @@ public class GoogleAnalyticsTest {
         assertNull("'dataSource' should have been reset.", googleAnalytics.getDataSource());
         assertNull("'anonymizeIP' should have been reset.", googleAnalytics.getAnonymizeIP());
         assertNull("'cacheBuster' should have been reset.", googleAnalytics.getCacheBuster());
+        assertNull("'exceptionDescription' should have been reset.", googleAnalytics.getExceptionDescription());
+        assertTrue("'isFatalException' should have been reset", googleAnalytics.getIsExceptionFatal());
 
         // verify that required params are retained
         assertEquals(trackingId, googleAnalytics.getTrackingId());
