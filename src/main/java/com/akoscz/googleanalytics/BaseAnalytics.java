@@ -3,9 +3,11 @@ package com.akoscz.googleanalytics;
 import com.akoscz.googleanalytics.dagger.BaseComponent;
 import com.akoscz.googleanalytics.dagger.ConfigModule;
 import com.akoscz.googleanalytics.dagger.DaggerBaseComponent;
+import com.akoscz.googleanalytics.util.ExceptionReporter;
 import dagger.Lazy;
 import lombok.Cleanup;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -36,6 +38,7 @@ import java.util.logging.Level;
  *     abstract List<GoogleAnalyticsParameter> buildPostParams();
  *     abstract GoogleAnalyticsConfig getConfig();
  *     abstract void validateRequiredParams();
+ *     abstract void resetTracker();
  */
 @Log
 public abstract class BaseAnalytics {
@@ -82,7 +85,8 @@ public abstract class BaseAnalytics {
      * @param config The configuration parameters for the tracker.  If null, default config values will be used.
      * @return A Google Analytics Tracker instance.
      */
-    public static GoogleAnalytics.Tracker buildTracker(String trackingId, UUID clientId, String applicationName, GoogleAnalyticsConfig config) {
+    public static GoogleAnalytics.Tracker buildTracker(@NonNull String trackingId, @NonNull UUID clientId,
+                                                       @NonNull String applicationName, GoogleAnalyticsConfig config) {
         if (config == null) config = new GoogleAnalyticsConfig();
 
         GoogleAnalytics.Tracker tracker = GoogleAnalytics.trackerBuilder()
@@ -101,6 +105,31 @@ public abstract class BaseAnalytics {
         globalTracker = tracker;
 
         return globalTracker;
+    }
+
+    /**
+     * Register a default UncaughtExceptionHandler which reports all uncaught exceptions to Google Analytics.
+     * If there exists a default UncaughtExceptionHandler it will be invoked after we have sent the
+     * exception event to Google Analytics.
+     *
+     * @param packages The package names that we want to include in the event description from the exception stack trace.
+     */
+    public static void registerDefaultUncaughtExceptionHandler(String... packages) {
+        Thread.UncaughtExceptionHandler existingUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new ExceptionReporter(globalTracker, existingUncaughtExceptionHandler, packages));
+    }
+
+    /**
+     * Register an UncaughtExceptionHandler for the given Thread which reports uncaught exceptions to Google Analytics.
+     * If there exists an UncaughtExceptionHandler on the Thread it will be invoked after we have handled sending the
+     * exception event to Google Analytics.
+     *
+     * @param thread The thread on which to register the UncaughtExceptionHandler.
+     * @param packages The package names that we want to include in the event description from the exception stack trace.
+     */
+    public static void registerThreadUncaughtExceptionHandler(@NonNull Thread thread, String... packages) {
+        Thread.UncaughtExceptionHandler existingUncaughtExceptionHandler = thread.getUncaughtExceptionHandler();
+        thread.setUncaughtExceptionHandler(new ExceptionReporter(globalTracker, existingUncaughtExceptionHandler, packages));
     }
 
     /**
