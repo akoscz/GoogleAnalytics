@@ -1,4 +1,4 @@
-# GoogleAnalytics 
+# GoogleAnalytics #
 [![Build Status](https://travis-ci.org/akoscz/GoogleAnalytics.svg?branch=master)](https://travis-ci.org/akoscz/GoogleAnalytics) [![Code Coverage](https://img.shields.io/codecov/c/github/akoscz/GoogleAnalytics/master.svg)](https://codecov.io/github/akoscz/GoogleAnalytics?branch=master)
 
 
@@ -34,6 +34,6 @@ This [GoogleAnalytics.java](src/main/java/com/akoscz/googleanalytics/GoogleAnaly
             .build()
             .send();
 
-#License
+# License #
 
 * [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
